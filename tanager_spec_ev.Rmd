@@ -1,26 +1,235 @@
 ---
-title: "tanager_evo_project_notes"
+---
+title: "Tanager Evolution Project Notes"
 output: html_document
 date: "2024-08-13"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(tidyverse)
+library(pbapply)
+library(pavo)
+library(DescTools)
+library(geiger)
+library(stringr)
+library(scales)
+library(ggtree)
+library(splines)
+library(knitr)
+library(kableExtra)
+
 ```
 
-## R Markdown
+### initialization
 
-Example of reading in male specs, extracting a patch, extracting a tree and the rows matching the genus tangara.
-```{r cars}
-summary(cars)
+```{r}
+
+ddPath <- "/Users/michaelalfaro/Dropbox/color_evolution_scratch/tanager_comp_analysis/allison_data/RefDataSpeciesSummary_MatchingMF"
+
+dat <- pblapply(list.files(ddPath, full=T), read.csv)
+wl <- dat[[1]][, 1]
+dat <- sapply(dat, "[", -1)
+# Create rspec object
+specs <- as.rspec(cbind(wl, do.call(cbind, dat)), lim=c(300, 700))
+specs <- procspec(specs, fixneg="zero")
+# Convert spectral data to RGB
+rgb_colors <- spec2rgb(specs)
+
+# Ensure that the names in rgb_colors match the species names
+names(rgb_colors) <- names(specs)[-1]
+
+# Drop females
+male_specs <- specs %>% select(!ends_with("f"))
+
+# Select the wl column and columns that start with "Crown_"
+crown_data <- male_specs %>%
+  select(wl, starts_with("Crown_")) %>%
+  rename_with(~ gsub("m$", "", .)) %>%
+  rename_with(~ gsub("^Crown_", "", .))
+
+# Display the cleaned crown_data to verify the changes
+head(crown_data)
+
 ```
 
-## Including Plots
+### Step 1 Extracting tanager tree
 
-You can also embed plots, for example:
+get the tanagers only
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+treepath <- "/Users/michaelalfaro/Dropbox/color_evolution_scratch/tanager_comp_analysis/allison_data/MCC_Tree_SpNames.nex"
+tt <- read.nexus(treepath)
+
+# Extract the tip labels (species names) from the tree
+tan_species <- grep("^Tan", tt$tip.label, value = TRUE)
+
+# Find the MRCA node of the species that start with "Tan"
+mrca_node <- getMRCA(tt, tan_species)
+
+# Extract the subtree from the MRCA node
+tanagerTree <- extract.clade(tt, mrca_node)
+
+# Plot the tanagerTree
+p <- ggtree(tanagerTree) +
+  geom_tiplab(size = 2.5, align = TRUE) +
+  theme_tree2()
+
+# Display the plot
+print(p)
+
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
+```
+
+### Step 2 Create a Data Frame Matching the Tanager Tree
+
+```{r}
+# Extract the species names (tip labels) from the tanagerTree
+tanager_species <- tanagerTree$tip.label
+
+# Filter crown_data to include only species that are present in tanagerTree
+tanData_filtered <- crown_data %>%
+  select(wl, any_of(tanager_species))
+
+# Display the filtered tanData to verify
+head(tanData_filtered)
+
+
+```
+
+### Step 3: Fitting Natural and Cubic Splines to the Tanager Data
+
+```{r}
+# Function to fit a natural spline and a cubic spline, returning the models, coefficients, and goodness-of-fit metrics
+fit_splines <- function(wl, reflectance) {
+  # Fit natural cubic spline
+  natural_spline_fit <- lm(reflectance ~ ns(wl, df = 5))
+  
+  # Fit cubic spline
+  cubic_spline_fit <- lm(reflectance ~ poly(wl, 3, raw = TRUE))
+  
+  # Extract coefficients
+  natural_coef <- round(coef(natural_spline_fit), 2)
+  cubic_coef <- round(coef(cubic_spline_fit), 2)
+  
+  # Calculate goodness-of-fit metrics
+  natural_adj_r2 <- summary(natural_spline_fit)$adj.r.squared
+  cubic_adj_r2 <- summary(cubic_spline_fit)$adj.r.squared
+  
+  natural_aic <- AIC(natural_spline_fit)
+  cubic_aic <- AIC(cubic_spline_fit)
+  
+  return(list(
+    natural_spline_fit = natural_spline_fit,
+    cubic_spline_fit = cubic_spline_fit,
+    natural_coef = natural_coef,
+    cubic_coef = cubic_coef,
+    natural_adj_r2 = natural_adj_r2,
+    cubic_adj_r2 = cubic_adj_r2,
+    natural_aic = natural_aic,
+    cubic_aic = cubic_aic
+  ))
+}
+
+# Apply the spline fitting function to each species
+spline_results <- lapply(tanData_filtered[-1], function(reflectance) {
+  fit_splines(tanData_filtered$wl, reflectance)
+})
+
+```
+
+### Step 4: Plotting Spline Fits and Original Data in the Markdown Document
+
+```{r}
+# Loop over each species and plot the original data and spline fits side by side
+par(mfrow = c(1, 2))  # Set up for side-by-side plotting
+
+for (species in names(spline_results)) {
+  result <- spline_results[[species]]
+  
+  # Get the correct RGB color
+  color <- rgb_colors[grep(species, names(rgb_colors))]
+  
+  # Plot original data and natural spline fit
+  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Natural Spline Fit for", species),
+       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
+  lines(tanData_filtered$wl, predict(result$natural_spline_fit), col = "red", lwd = 2)
+  mtext(paste("Adj R2:", round(result$natural_adj_r2, 3), "AIC:", round(result$natural_aic, 2)),
+        side = 3, line = 0.5, cex = 0.7, col = "blue")
+  
+  # Plot original data and cubic spline fit
+  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Cubic Spline Fit for", species),
+       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
+  lines(tanData_filtered$wl, predict(result$cubic_spline_fit), col = "green", lwd = 2)
+  mtext(paste("Adj R2:", round(result$cubic_adj_r2, 3), "AIC:", round(result$cubic_aic, 2)),
+        side = 3, line = 0.5, cex = 0.7, col = "blue")
+}
+
+```
+
+### Step 5 Print a Summary Table of Spline Fits
+
+```{r}
+# Open the PDF device
+pdf("spline_fits_with_rgb_and_metrics.pdf", width = 12, height = 8)
+
+# Set up the plotting area to show two plots per page
+par(mfrow = c(1, 2))
+
+# Loop over each species and plot the original data and spline fits side by side
+for (species in names(spline_results)) {
+  result <- spline_results[[species]]
+  
+  # Get the correct RGB color
+  color <- rgb_colors[grep(species, names(rgb_colors))]
+  
+  # Plot original data and natural spline fit
+  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Natural Spline Fit for", species),
+       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
+  lines(tanData_filtered$wl, predict(result$natural_spline_fit), col = "red", lwd = 2)
+  mtext(paste("Adj R2:", round(result$natural_adj_r2, 3), "AIC:", round(result$natural_aic, 2)),
+        side = 3, line = 0.5, cex = 0.7, col = "blue")
+  
+  # Plot original data and cubic spline fit
+  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Cubic Spline Fit for", species),
+       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
+  lines(tanData_filtered$wl, predict(result$cubic_spline_fit), col = "green", lwd = 2)
+  mtext(paste("Adj R2:", round(result$cubic_adj_r2, 3), "AIC:", round(result$cubic_aic, 2)),
+        side = 3, line = 0.5, cex = 0.7, col = "blue")
+}
+
+# Close the PDF device
+dev.off()
+
+```
+
+
+## Step 6 Print a Summary Table of Spline Fits
+
+```{r}
+# Create the spline summary table with coefficients and goodness-of-fit metrics
+spline_table <- data.frame(
+  Species = names(spline_results),
+  Natural_Spline_Coefficients = sapply(spline_results, function(x) paste(x$natural_coef, collapse = ", ")),
+  Cubic_Spline_Coefficients = sapply(spline_results, function(x) paste(x$cubic_coef, collapse = ", ")),
+  Natural_Adj_R2 = sapply(spline_results, function(x) round(x$natural_adj_r2, 3)),
+  Cubic_Adj_R2 = sapply(spline_results, function(x) round(x$cubic_adj_r2, 3)),
+  Natural_AIC = sapply(spline_results, function(x) round(x$natural_aic, 2)),
+  Cubic_AIC = sapply(spline_results, function(x) round(x$cubic_aic, 2))
+)
+
+# Remove row names
+rownames(spline_table) <- NULL
+
+# Display the table in the document without row names
+kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+```
+
+
