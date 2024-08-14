@@ -253,6 +253,14 @@ rownames(spline_table) <- NULL
 kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
   kable_styling(bootstrap_options = "striped", full_width = F)
 
+# Save the table as a CSV
+write.csv(spline_table, "spline_summary_table.csv", row.names = FALSE)
+
+# Fixing the PDF export by increasing the margins and adjusting the layout
+pdf("spline_summary_table.pdf", width = 11, height = 8.5)
+gridExtra::grid.table(spline_table, rows = NULL)
+dev.off()
+
 ```
 
 
