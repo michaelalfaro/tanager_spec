@@ -146,14 +146,37 @@ spline_results <- lapply(tanData_filtered[-1], function(reflectance) {
 ### Step 4: Plotting Spline Fits and Original Data in the Markdown Document
 
 ```{r}
-# Loop over each species and plot the original data and spline fits side by side
-par(mfrow = c(1, 2))  # Set up for side-by-side plotting
+# Set up the plotting area to show natural and cubic spline fits side by side for each species
+pdf("spline_fits_with_goodness_of_fit.pdf", width = 12, height = 8)
+par(mfrow = c(2, 2))  # Set up for side-by-side plotting: two columns, two rows per page
 
 for (species in names(spline_results)) {
   result <- spline_results[[species]]
   
   # Get the correct RGB color
   color <- rgb_colors[grep(species, names(rgb_colors))]
+  
+  # Plot original data and natural spline fit
+  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Natural Spline Fit for", species),
+       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
+  lines(tanData_filtered$wl, predict(result$natural_spline_fit), col = "red", lwd = 2)
+  mtext(paste("Adj R2:", round(result$natural_adj_r2, 3), "AIC:", round(result$natural_aic, 2)),
+        side = 3, line = 0.5, cex = 0.7, col = "blue")
+  
+  # Plot original data and cubic spline fit
+  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Cubic Spline Fit for", species),
+       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
+  lines(tanData_filtered$wl, predict(result$cubic_spline_fit), col = "green", lwd = 2)
+  mtext(paste("Adj R2:", round(result$cubic_adj_r2, 3), "AIC:", round(result$cubic_aic, 2)),
+        side = 3, line = 0.5, cex = 0.7, col = "blue")
+}
+dev.off()
+
+# Plot the same layout in R Markdown for viewing
+par(mfrow = c(2, 2))  # Set up for side-by-side plotting in the markdown as well
+
+for (species in names(spline_results)) {
+  result <- spline_results[[species]]
   
   # Plot original data and natural spline fit
   plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Natural Spline Fit for", species),
