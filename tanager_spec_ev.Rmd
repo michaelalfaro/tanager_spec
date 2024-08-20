@@ -1,5 +1,4 @@
 ---
----
 title: "Tanager Evolution Project Notes"
 output: html_document
 date: "2024-08-13"
@@ -24,32 +23,28 @@ library(kableExtra)
 ### initialization
 
 ```{r}
+suppressMessages({
+  ddPath <- "/Users/michaelalfaro/Dropbox/color_evolution_scratch/tanager_comp_analysis/allison_data/RefDataSpeciesSummary_MatchingMF"
 
-ddPath <- "/Users/michaelalfaro/Dropbox/color_evolution_scratch/tanager_comp_analysis/allison_data/RefDataSpeciesSummary_MatchingMF"
-
-dat <- pblapply(list.files(ddPath, full=T), read.csv)
-wl <- dat[[1]][, 1]
-dat <- sapply(dat, "[", -1)
-# Create rspec object
-specs <- as.rspec(cbind(wl, do.call(cbind, dat)), lim=c(300, 700))
-specs <- procspec(specs, fixneg="zero")
-# Convert spectral data to RGB
-rgb_colors <- spec2rgb(specs)
-
-# Ensure that the names in rgb_colors match the species names
-names(rgb_colors) <- names(specs)[-1]
-
-# Drop females
-male_specs <- specs %>% select(!ends_with("f"))
-
-# Select the wl column and columns that start with "Crown_"
-crown_data <- male_specs %>%
-  select(wl, starts_with("Crown_")) %>%
-  rename_with(~ gsub("m$", "", .)) %>%
-  rename_with(~ gsub("^Crown_", "", .))
-
-# Display the cleaned crown_data to verify the changes
-head(crown_data)
+  dat <- pblapply(list.files(ddPath, full=T), read.csv)
+  wl <- dat[[1]][, 1]
+  dat <- sapply(dat, "[", -1)
+  
+  specs <- as.rspec(cbind(wl, do.call(cbind, dat)), lim=c(300, 700))
+  specs <- procspec(specs, fixneg="zero")
+  
+  male_specs <- specs %>% select(!ends_with("f"))
+  
+  crown_data <- male_specs %>%
+    select(wl, starts_with("Crown_")) %>%
+    rename_with(~ gsub("m$", "", .)) %>%
+    rename_with(~ gsub("^Crown_", "", .))
+  
+  rgb_colors <- spec2rgb(crown_data)
+  names(rgb_colors) <- names(crown_data)[-1]
+  
+  head(crown_data)
+})
 
 ```
 
@@ -105,13 +100,22 @@ head(tanData_filtered)
 ### Step 3: Fitting Natural and Cubic Splines to the Tanager Data
 
 ```{r}
-# Function to fit a natural spline and a cubic spline, returning the models, coefficients, and goodness-of-fit metrics
+### Step 3: Fitting Natural and Cubic Splines to the Tanager Data
+
+# Function to fit a natural spline and a cubic spline, returning the models, coefficients, goodness-of-fit metrics, and RGB colors
 fit_splines <- function(wl, reflectance) {
   # Fit natural cubic spline
   natural_spline_fit <- lm(reflectance ~ ns(wl, df = 5))
   
   # Fit cubic spline
   cubic_spline_fit <- lm(reflectance ~ poly(wl, 3, raw = TRUE))
+  
+  # Convert fitted splines to rspec and then to RGB hex codes
+  natural_spline_rspec <- as.rspec(data.frame(wl = wl, reflectance = predict(natural_spline_fit)), lim = c(300, 700))
+  natural_rgb <- spec2rgb(natural_spline_rspec)
+  
+  cubic_spline_rspec <- as.rspec(data.frame(wl = wl, reflectance = predict(cubic_spline_fit)), lim = c(300, 700))
+  cubic_rgb <- spec2rgb(cubic_spline_rspec)
   
   # Extract coefficients
   natural_coef <- round(coef(natural_spline_fit), 2)
@@ -127,6 +131,8 @@ fit_splines <- function(wl, reflectance) {
   return(list(
     natural_spline_fit = natural_spline_fit,
     cubic_spline_fit = cubic_spline_fit,
+    natural_rgb = natural_rgb,
+    cubic_rgb = cubic_rgb,
     natural_coef = natural_coef,
     cubic_coef = cubic_coef,
     natural_adj_r2 = natural_adj_r2,
@@ -141,29 +147,68 @@ spline_results <- lapply(tanData_filtered[-1], function(reflectance) {
   fit_splines(tanData_filtered$wl, reflectance)
 })
 
+
+
 ```
+
+Step 3b--making the species plots of natural and cubic spline
+
+```{r}
+plot_splines_with_metrics <- function(species_name, wl, reflectance, spline_results, rgb_colors) {
+  result <- spline_results[[species_name]]
+  
+  par(mfrow = c(1, 2))
+  
+  # Natural Spline
+plot(wl, reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Natural Spline -", species_name),
+     xlab = "Wavelength (nm)", ylab = "Reflectance")
+lines(wl, predict(result$natural_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
+mtext(paste("Adj R2:", round(result$natural_adj_r2, 3), "AIC:", round(result$natural_aic, 2)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+
+# Cubic Spline
+plot(wl, reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Cubic Spline -", species_name),
+     xlab = "Wavelength (nm)", ylab = "Reflectance")
+lines(wl, predict(result$cubic_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
+mtext(paste("Adj R2:", round(result$cubic_adj_r2, 3), "AIC:", round(result$cubic_aic, 2)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+}
+
+for (species_name in names(spline_results)) {
+  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], spline_results, rgb_colors)
+}
+
+pdf("natural_vs_cubic_splines_with_metrics.pdf", width = 12, height = 8)
+for (species_name in names(spline_results)) {
+  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], spline_results, rgb_colors)
+}
+dev.off()
+
+
+```
+
 
 ### Step 4: Plotting Spline Fits and Original Data in the Markdown Document
 
 ```{r}
-# Step 4: Calculate Average Splines and Standard Deviation
-
-# Step 4: Calculate Average Splines and Standard Deviation
+### Step 4: Calculate Average Splines and Standard Deviation
 
 # Calculate the maximum reflectance across all splines
 max_reflectance <- max(sapply(spline_results, function(result) {
   max(predict(result$natural_spline_fit), predict(result$cubic_spline_fit))
 }))
 
-# Initialize matrices to store predictions
+# Initialize vectors to store average splines and standard deviations
 natural_spline_avg <- numeric(length(tanData_filtered$wl))
 cubic_spline_avg <- numeric(length(tanData_filtered$wl))
-
-# Initialize vectors to store standard deviations
 natural_spline_sd <- numeric(length(tanData_filtered$wl))
 cubic_spline_sd <- numeric(length(tanData_filtered$wl))
 
-# Calculate averages and standard deviations
+# Calculate averages
 for (result in spline_results) {
   natural_pred <- predict(result$natural_spline_fit)
   cubic_pred <- predict(result$cubic_spline_fit)
@@ -172,7 +217,7 @@ for (result in spline_results) {
   cubic_spline_avg <- cubic_spline_avg + cubic_pred
 }
 
-# Convert to averages
+# Convert sums to averages
 natural_spline_avg <- natural_spline_avg / length(spline_results)
 cubic_spline_avg <- cubic_spline_avg / length(spline_results)
 
@@ -188,96 +233,123 @@ for (result in spline_results) {
 natural_spline_sd <- sqrt(natural_spline_sd / (length(spline_results) - 1))
 cubic_spline_sd <- sqrt(cubic_spline_sd / (length(spline_results) - 1))
 
+### Correct for negative values in the average splines
+
+# Convert the average natural and cubic splines to rspec objects
+natural_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = natural_spline_avg), lim = c(300, 700))
+cubic_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = cubic_spline_avg), lim = c(300, 700))
+
+# Correct any negative values in the rspec objects
+natural_spline_rspec <- procspec(natural_spline_rspec, fixneg = "zero")
+cubic_spline_rspec <- procspec(cubic_spline_rspec, fixneg = "zero")
+
+# Convert corrected rspec objects to RGB hex codes
+natural_spline_rgb <- spec2rgb(natural_spline_rspec)
+cubic_spline_rgb <- spec2rgb(cubic_spline_rspec)
+
+### Step 4a: Plot Average Splines with Confidence Intervals
+
 # Create a plot for the average natural spline with confidence intervals
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = "blue", lwd = 2,
+plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
      main = "Average Natural Spline with Variation Hotspots",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
         c(natural_spline_avg + natural_spline_sd, rev(natural_spline_avg - natural_spline_sd)), 
-        col = rgb(0, 0, 1, 0.2), border = NA)
-lines(tanData_filtered$wl, natural_spline_avg, col = "blue", lwd = 2)
+        col = adjustcolor(natural_spline_rgb, alpha.f = 0.2), border = NA)
+lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
 
 # Create a plot for the average cubic spline with confidence intervals
-plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = "green", lwd = 2,
+plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = cubic_spline_rgb, lwd = 4,
      main = "Average Cubic Spline with Variation Hotspots",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
         c(cubic_spline_avg + cubic_spline_sd, rev(cubic_spline_avg - cubic_spline_sd)), 
-        col = rgb(0, 1, 0, 0.2), border = NA)
-lines(tanData_filtered$wl, cubic_spline_avg, col = "green", lwd = 2)
+        col = adjustcolor(cubic_spline_rgb, alpha.f = 0.2), border = NA)
+lines(tanData_filtered$wl, cubic_spline_avg, col = cubic_spline_rgb, lwd = 4)
 
 # Save the hotspot plots to a PDF
 pdf("spline_hotspots.pdf", width = 12, height = 8)
 par(mfrow = c(1, 2))  # Plot both splines side by side
 
-# Average Natural Spline with Hotspots
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = "blue", lwd = 2,
+# Average Natural Spline with Hotspots in PDF
+plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
      main = "Average Natural Spline with Variation Hotspots",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
         c(natural_spline_avg + natural_spline_sd, rev(natural_spline_avg - natural_spline_sd)), 
-        col = rgb(0, 0, 1, 0.2), border = NA)
-lines(tanData_filtered$wl, natural_spline_avg, col = "blue", lwd = 2)
+        col = adjustcolor(natural_spline_rgb, alpha.f = 0.2), border = NA)
+lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
 
-# Average Cubic Spline with Hotspots
-plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = "green", lwd = 2,
+# Average Cubic Spline with Hotspots in PDF
+plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = cubic_spline_rgb, lwd = 4,
      main = "Average Cubic Spline with Variation Hotspots",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
         c(cubic_spline_avg + cubic_spline_sd, rev(cubic_spline_avg - cubic_spline_sd)), 
-        col = rgb(0, 1, 0, 0.2), border = NA)
-lines(tanData_filtered$wl, cubic_spline_avg, col = "green", lwd = 2)
+        col = adjustcolor(cubic_spline_rgb, alpha.f = 0.2), border = NA)
+lines(tanData_filtered$wl, cubic_spline_avg, col = cubic_spline_rgb, lwd = 4)
 
 dev.off()
+
+### Step 4b: Plot Natural Spline Mean and Cubic Spline Mean with Species Overlaid
 
 # Plot Natural Spline Mean with all species overlaid
 par(mfrow = c(1, 2))
 
-# Plot Natural Spline Mean
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = "blue", lwd = 2,
+# Plot Natural Spline Mean with Species Overlaid
+plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
      main = "Natural Spline Mean with Species Overlaid",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 for (i in seq_along(spline_results)) {
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$natural_spline_fit), col = rgb(0, 0, 1, 0.3))
+  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$natural_spline_fit)), lim = c(300, 700))
+  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
+  species_rgb <- spec2rgb(species_rspec)
+  lines(tanData_filtered$wl, predict(spline_results[[i]]$natural_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
 }
-lines(tanData_filtered$wl, natural_spline_avg, col = "blue", lwd = 2)
+lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
 
-# Plot Cubic Spline Mean
-plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = "green", lwd = 2,
+# Plot Cubic Spline Mean with Species Overlaid
+plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = cubic_spline_rgb, lwd = 4,
      main = "Cubic Spline Mean with Species Overlaid",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 for (i in seq_along(spline_results)) {
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$cubic_spline_fit), col = rgb(0, 1, 0, 0.3))
+  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$cubic_spline_fit)), lim = c(300, 700))
+  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
+  species_rgb <- spec2rgb(species_rspec)
+  lines(tanData_filtered$wl, predict(spline_results[[i]]$cubic_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
 }
-lines(tanData_filtered$wl, cubic_spline_avg, col = "green", lwd = 2)
+lines(tanData_filtered$wl, cubic_spline_avg, col = cubic_spline_rgb, lwd = 4)
 
 # Save the overlay plots to a PDF
 pdf("spline_mean_with_species_overlay.pdf", width = 12, height = 8)
 par(mfrow = c(1, 2))
 
 # Plot Natural Spline Mean with Species Overlaid in PDF
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = "blue", lwd = 2,
+plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
      main = "Natural Spline Mean with Species Overlaid",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 for (i in seq_along(spline_results)) {
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$natural_spline_fit), col = rgb(0, 0, 1, 0.3))
+  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$natural_spline_fit)), lim = c(300, 700))
+  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
+  species_rgb <- spec2rgb(species_rspec)
+  lines(tanData_filtered$wl, predict(spline_results[[i]]$natural_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
 }
-lines(tanData_filtered$wl, natural_spline_avg, col = "blue", lwd = 2)
+lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
 
 # Plot Cubic Spline Mean with Species Overlaid in PDF
-plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = "green", lwd = 2,
+plot(tanData_filtered$wl, cubic_spline_avg, type = "l", col = cubic_spline_rgb, lwd = 4,
      main = "Cubic Spline Mean with Species Overlaid",
      xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
 for (i in seq_along(spline_results)) {
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$cubic_spline_fit), col = rgb(0, 1, 0, 0.3))
+  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$cubic_spline_fit)), lim = c(300, 700))
+  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
+  species_rgb <- spec2rgb(species_rspec)
+  lines(tanData_filtered$wl, predict(spline_results[[i]]$cubic_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
 }
-lines(tanData_filtered$wl, cubic_spline_avg, col = "green", lwd = 2)
+lines(tanData_filtered$wl, cubic_spline_avg, col = cubic_spline_rgb, lwd = 4)
 
 dev.off()
 
-
-
-##########################
 
 ```
 
@@ -286,8 +358,6 @@ dev.off()
 
 ```{r}
 ### Step 4b: Plot Natural Spline with Species Overlaid and Print to PDF
-
-### Step 4b: Plot Natural and Cubic Splines with Species Overlaid (Side by Side)
 
 # Convert the natural spline to an rspec object and then to an RGB hex code
 natural_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = natural_spline_avg), lim = c(300, 700))
