@@ -683,7 +683,6 @@ print(p)
 
 
 
-```
 
 ### Step 2 Create a Data Frame Matching the Tanager Tree
 
