@@ -1122,8 +1122,8 @@ spline_table_df_ordered <- cbind(degrees_of_freedom, spline_table_df_ordered)
 
 
 ## Knot placement comparison
-### NOTE: Run chunks initialization through Step 3 if working on this chunk
 ```{r}
+# NOTE: Run chunks initialization through Step 3 if working on this chunk
 
 
 
@@ -1309,7 +1309,6 @@ par(mfrow=c(1,1))
 
 
 
-### Spline coefficient uses?
 ```{r, message=FALSE, warning=FALSE}
 ### Step 3: Fitting Natural and B Splines to the Tanager Data
 
@@ -1409,356 +1408,91 @@ dev.off()
 
 ```
 
-Step 3b--making the species plots of natural and B Spline
-
-```{r}
-plot_splines_with_metrics <- function(species_name, wl, reflectance, spline_results, rgb_colors) {
-  result <- spline_results[[species_name]]
-  
-  par(mfrow = c(1, 2))
-  
-  # Natural Spline
-plot(wl, reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
-     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
-     main = paste("Natural Spline -", species_name),
-     xlab = "Wavelength (nm)", ylab = "Reflectance")
-lines(wl, predict(result$natural_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
-mtext(paste("Adj R2:", round(result$natural_adj_r2, 3), "AIC:", round(result$natural_aic, 2)),
-      side = 3, line = 0.5, cex = 0.8, col = "blue")
-
-# B Spline
-plot(wl, reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
-     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
-     main = paste("B Spline -", species_name),
-     xlab = "Wavelength (nm)", ylab = "Reflectance")
-lines(wl, predict(result$b_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
-mtext(paste("Adj R2:", round(result$quartic_adj_r2, 3), "AIC:", round(result$quartic_aic, 2)),
-      side = 3, line = 0.5, cex = 0.8, col = "blue")
-}
-
-for (species_name in names(spline_results)) {
-  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], spline_results, rgb_colors)
-}
-
-pdf("natural_vs_b_splines_with_metrics.pdf", width = 12, height = 8)
-for (species_name in names(spline_results)) {
-  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], spline_results, rgb_colors)
-}
-dev.off()
+# AIC and R^2 distributions
+```{r, message = FALSE, warning=FALSE}
+# Run everything through chunk Step 6
 
 
-```
+
+model_scoring <- spline_table[,c(1,4:7)]
+
+model_scoring <- model_scoring %>% 
+  group_by(Species) %>%
+  mutate(Preferred_Model = min(c(Natural_AIC, Cubic_AIC)))
+
+preferred_model_name <- rep(NA, length(model_scoring$Species))
+for (i in 1:length(model_scoring$Species)){
+  if (model_scoring[i,6] == model_scoring[i,4]){
+    preferred_model_name[i] <- 0
+  }
+  else if (model_scoring[i,6] == model_scoring[i,5]){
+    preferred_model_name[i] <- 1
+  }
+  else if (model_scoring[i,6] == model_scoring[i,5] & model_scoring[i,6] == model_scoring[i,4]){
+    preferred_model_name[i] <- 2
+  }
+    }
+
+model_scoring <- cbind(model_scoring, preferred_model_name)
+column_names <- colnames(model_scoring)
+column_names[7] <- "Preferred_Model_Name"
+colnames(model_scoring) <- column_names
+
+model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 0] <- "Natural"
+model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 1] <- "Cubic"
+model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 2] <- "Either"
 
 
-### Step 4: Plotting Spline Fits and Original Data in the Markdown Document
+ggplot(data = model_scoring, aes(x = Natural_AIC, fill = Preferred_Model_Name)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
 
-```{r, message=FALSE}
-### Step 4: Calculate Average Splines and Standard Deviation
 
-# Calculate the maximum reflectance across all splines
-max_reflectance <- max(sapply(spline_results, function(result) {
-  max(predict(result$natural_spline_fit), predict(result$b_spline_fit))
-}))
+model_scoring <- model_scoring %>% 
+  group_by(Species) %>%
+  mutate(Best_Fit = max(c(Natural_Adj_R2, Cubic_Adj_R2)))
 
-# Initialize vectors to store average splines and standard deviations
-natural_spline_avg <- numeric(length(tanData_filtered$wl))
-b_spline_avg <- numeric(length(tanData_filtered$wl))
-natural_spline_sd <- numeric(length(tanData_filtered$wl))
-b_spline_sd <- numeric(length(tanData_filtered$wl))
+best_fit_model <- rep(NA, length(model_scoring$Species))
+for (i in 1:length(model_scoring$Species)){
+  if (model_scoring[i,8] == model_scoring[i,2]){
+    best_fit_model[i] <- 0
+  }
+  else if (model_scoring[i,8] == model_scoring[i,3]){
+    best_fit_model[i] <- 1
+  }
+  else if (model_scoring[i,8] == model_scoring[i,2] & model_scoring[i,3] == model_scoring[i,8]){
+    best_fit_model[i] <- 2
+  }
+    }
 
-# Calculate averages
-for (result in spline_results) {
-  natural_pred <- predict(result$natural_spline_fit)
-  quartic_pred <- predict(result$b_spline_fit)
-  
-  natural_spline_avg <- natural_spline_avg + natural_pred
-  b_spline_avg <- b_spline_avg + quartic_pred
-}
 
-# Convert sums to averages
-natural_spline_avg <- natural_spline_avg / length(spline_results)
-b_spline_avg <- b_spline_avg / length(spline_results)
+model_scoring <- cbind(model_scoring, best_fit_model)
+column_names <- colnames(model_scoring)
+column_names[9] <- "Model_of_Best_Fit"
+colnames(model_scoring) <- column_names
 
-# Calculate standard deviations
-for (result in spline_results) {
-  natural_pred <- predict(result$natural_spline_fit)
-  quartic_pred <- predict(result$b_spline_fit)
-  
-  natural_spline_sd <- natural_spline_sd + (natural_pred - natural_spline_avg)^2
-  b_spline_sd <- b_spline_sd + (quartic_pred - b_spline_avg)^2
-}
+model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 0] <- "Natural"
+model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 1] <- "Cubic"
+model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 2] <- "Either"
 
-natural_spline_sd <- sqrt(natural_spline_sd / (length(spline_results) - 1))
-b_spline_sd <- sqrt(b_spline_sd / (length(spline_results) - 1))
 
-### Correct for negative values in the average splines
+ggplot(data = model_scoring, aes(x = Best_Fit, fill = Model_of_Best_Fit)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
 
-# Convert the average natural and B Splines to rspec objects
-natural_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = natural_spline_avg), lim = c(300, 700))
-b_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = b_spline_avg), lim = c(300, 700))
 
-# Correct any negative values in the rspec objects
-natural_spline_rspec <- procspec(natural_spline_rspec, fixneg = "zero")
-b_spline_rspec <- procspec(b_spline_rspec, fixneg = "zero")
 
-# Convert corrected rspec objects to RGB hex codes
-natural_spline_rgb <- spec2rgb(natural_spline_rspec)
-b_spline_rgb <- spec2rgb(b_spline_rspec)
 
-### Step 4a: Plot Average Splines with Confidence Intervals
 
-# Create a plot for the average natural spline with confidence intervals
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
-     main = "Average Natural Spline with Variation Hotspots",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
-        c(natural_spline_avg + natural_spline_sd, rev(natural_spline_avg - natural_spline_sd)), 
-        col = adjustcolor(natural_spline_rgb, alpha.f = 0.2), border = NA)
-lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
+par(mfrow=c(1,2))
 
-# Create a plot for the average B Spline with confidence intervals
-plot(tanData_filtered$wl, b_spline_avg, type = "l", col = b_spline_rgb, lwd = 4,
-     main = "Average B Spline with Variation Hotspots",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
-        c(b_spline_avg + b_spline_sd, rev(b_spline_avg - b_spline_sd)), 
-        col = adjustcolor(b_spline_rgb, alpha.f = 0.2), border = NA)
-lines(tanData_filtered$wl, b_spline_avg, col = b_spline_rgb, lwd = 4)
+ggplot(data = model_scoring, aes(x = Best_Fit, fill = Model_of_Best_Fit)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
+ggplot(data = model_scoring, aes(x = Natural_AIC, fill = Preferred_Model_Name)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
+hist(spline_table$Natural_Adj_R2, breaks = seq(0,1, length.out = 50))
+hist(spline_table$Cubic_Adj_R2, breaks = seq(0,1, length.out = 50))
+par(mfrow=c(2,1))
 
-# Save the hotspot plots to a PDF
-pdf("spline_hotspots.pdf", width = 12, height = 8)
-par(mfrow = c(1, 2))  # Plot both splines side by side
 
-# Average Natural Spline with Hotspots in PDF
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
-     main = "Average Natural Spline with Variation Hotspots",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
-        c(natural_spline_avg + natural_spline_sd, rev(natural_spline_avg - natural_spline_sd)), 
-        col = adjustcolor(natural_spline_rgb, alpha.f = 0.2), border = NA)
-lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
 
-# Average B Spline with Hotspots in PDF
-plot(tanData_filtered$wl, b_spline_avg, type = "l", col = b_spline_rgb, lwd = 4,
-     main = "Average B Spline with Variation Hotspots",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-polygon(c(tanData_filtered$wl, rev(tanData_filtered$wl)), 
-        c(b_spline_avg + b_spline_sd, rev(b_spline_avg - b_spline_sd)), 
-        col = adjustcolor(b_spline_rgb, alpha.f = 0.2), border = NA)
-lines(tanData_filtered$wl, b_spline_avg, col = b_spline_rgb, lwd = 4)
-
-dev.off()
-
-### Step 4b: Plot Natural Spline Mean and B Spline Mean with Species Overlaid
-
-# Plot Natural Spline Mean with all species overlaid
-par(mfrow = c(1, 2))
-
-# Plot Natural Spline Mean with Species Overlaid
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
-     main = "Natural Spline Mean with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-for (i in seq_along(spline_results)) {
-  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$natural_spline_fit)), lim = c(300, 700))
-  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
-  species_rgb <- spec2rgb(species_rspec)
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$natural_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
-}
-lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
-
-# Plot B Spline Mean with Species Overlaid
-plot(tanData_filtered$wl, b_spline_avg, type = "l", col = b_spline_rgb, lwd = 4,
-     main = "B Spline Mean with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-for (i in seq_along(spline_results)) {
-  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$b_spline_fit)), lim = c(300, 700))
-  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
-  species_rgb <- spec2rgb(species_rspec)
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$b_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
-}
-lines(tanData_filtered$wl, b_spline_avg, col = b_spline_rgb, lwd = 4)
-
-# Save the overlay plots to a PDF
-pdf("spline_mean_with_species_overlay.pdf", width = 12, height = 8)
-par(mfrow = c(1, 2))
-
-# Plot Natural Spline Mean with Species Overlaid in PDF
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
-     main = "Natural Spline Mean with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-for (i in seq_along(spline_results)) {
-  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$natural_spline_fit)), lim = c(300, 700))
-  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
-  species_rgb <- spec2rgb(species_rspec)
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$natural_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
-}
-lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
-
-# Plot B Spline Mean with Species Overlaid in PDF
-plot(tanData_filtered$wl, b_spline_avg, type = "l", col = b_spline_rgb, lwd = 4,
-     main = "B Spline Mean with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-for (i in seq_along(spline_results)) {
-  species_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[i]]$b_spline_fit)), lim = c(300, 700))
-  species_rspec <- procspec(species_rspec, fixneg = "zero")  # Correct any negative values
-  species_rgb <- spec2rgb(species_rspec)
-  lines(tanData_filtered$wl, predict(spline_results[[i]]$b_spline_fit), col = adjustcolor(species_rgb, alpha.f = 0.3))
-}
-lines(tanData_filtered$wl, b_spline_avg, col = b_spline_rgb, lwd = 4)
-
-dev.off()
-
+hist(spline_table$Natural_AIC, breaks = seq(min(spline_table$Natural_AIC),max(spline_table$Natural_AIC), length.out = 50))
+hist(spline_table$Cubic_AIC, breaks = seq(min(spline_table$Cubic_AIC),max(spline_table$Cubic_AIC), length.out = 50))
+par(mfrow=c(1,1))
 
 ```
 
-
-### Step 4b Make a pair of plots of the natural and B Spline where the spline is colored as a spec that is converted to its hsv value (make sure no negative values)
-
-```{r}
-### Step 4b: Plot Natural Spline with Species Overlaid and Print to PDF
-
-# Convert the natural spline to an rspec object and then to an RGB hex code
-natural_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = natural_spline_avg), lim = c(300, 700))
-natural_spline_rgb <- spec2rgb(natural_spline_rspec)
-
-# Convert the B Spline to an rspec object and then to an RGB hex code
-b_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = b_spline_avg), lim = c(300, 700))
-b_spline_rgb <- spec2rgb(b_spline_rspec)
-
-# Plot the natural and B Splines side by side in R Markdown
-par(mfrow = c(1, 2))  # Arrange plots side by side
-
-# Plot Natural Spline with Species Overlaid
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,  # Increased thickness
-     main = "Natural Spline with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-
-# Loop through each species to plot their splines with slightly more visible transparency
-for (species in names(spline_results)) {
-  species_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[species]]$natural_spline_fit)), lim = c(300, 700))
-  species_rgb <- spec2rgb(species_spline_rspec)
-  
-  # Adjust transparency to make species lines slightly more visible
-  species_rgb_alpha <- adjustcolor(species_rgb, alpha.f = 0.4)  # Adjusted alpha for more visibility
-  
-  lines(tanData_filtered$wl, predict(spline_results[[species]]$natural_spline_fit), col = species_rgb_alpha)
-}
-
-# Re-plot the natural spline on top to ensure it stands out
-lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)  # Increased thickness
-
-# Plot B Spline with Species Overlaid
-plot(tanData_filtered$wl, b_spline_avg, type = "l", col = b_spline_rgb, lwd = 4,  # Increased thickness
-     main = "B Spline with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-
-# Loop through each species to plot their splines with slightly more visible transparency
-for (species in names(spline_results)) {
-  species_spline_rspec <- as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[species]]$b_spline_fit)), lim = c(300, 700))
-  species_rgb <- spec2rgb(species_spline_rspec)
-  
-  # Adjust transparency to make species lines slightly more visible
-  species_rgb_alpha <- adjustcolor(species_rgb, alpha.f = 0.4)  # Adjusted alpha for more visibility
-  
-  lines(tanData_filtered$wl, predict(spline_results[[species]]$b_spline_fit), col = species_rgb_alpha)
-}
-
-# Re-plot the B Spline on top to ensure it stands out
-lines(tanData_filtered$wl, b_spline_avg, col = b_spline_rgb, lwd = 4)  # Increased thickness
-
-# Save the plots to a PDF as well
-pdf("natural_and_b_splines_with_species_overlay.pdf", width = 12, height = 8)
-par(mfrow = c(1, 2))  # Arrange plots side by side in the PDF
-
-# Plot Natural Spline with Species Overlaid in PDF
-plot(tanData_filtered$wl, natural_spline_avg, type = "l", col = natural_spline_rgb, lwd = 4,
-     main = "Natural Spline with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-for (species in names(spline_results)) {
-  species_rgb_alpha <- adjustcolor(spec2rgb(as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[species]]$natural_spline_fit)), lim = c(300, 700))), alpha.f = 0.4)
-  lines(tanData_filtered$wl, predict(spline_results[[species]]$natural_spline_fit), col = species_rgb_alpha)
-}
-lines(tanData_filtered$wl, natural_spline_avg, col = natural_spline_rgb, lwd = 4)
-
-# Plot B Spline with Species Overlaid in PDF
-plot(tanData_filtered$wl, b_spline_avg, type = "l", col = b_spline_rgb, lwd = 4,
-     main = "B Spline with Species Overlaid",
-     xlab = "Wavelength (nm)", ylab = "Reflectance", ylim = c(0, max_reflectance))
-for (species in names(spline_results)) {
-  species_rgb_alpha <- adjustcolor(spec2rgb(as.rspec(data.frame(wl = tanData_filtered$wl, reflectance = predict(spline_results[[species]]$b_spline_fit)), lim = c(300, 700))), alpha.f = 0.4)
-  lines(tanData_filtered$wl, predict(spline_results[[species]]$b_spline_fit), col = species_rgb_alpha)
-}
-lines(tanData_filtered$wl, b_spline_avg, col = b_spline_rgb, lwd = 4)
-
-dev.off()
-
-
-```
-
-### Step 5 Print a Summary Table of Spline Fits
-
-```{r}
-# Open the PDF device
-pdf("spline_fits_with_rgb_and_metrics.pdf", width = 12, height = 8)
-
-# Set up the plotting area to show two plots per page
-par(mfrow = c(1, 2))
-
-# Loop over each species and plot the original data and spline fits side by side
-for (species in names(spline_results)) {
-  result <- spline_results[[species]]
-  
-  # Get the correct RGB color
-  color <- rgb_colors[grep(species, names(rgb_colors))]
-  
-  # Plot original data and natural spline fit
-  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("Natural Spline Fit for", species),
-       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
-  lines(tanData_filtered$wl, predict(result$natural_spline_fit), col = "red", lwd = 2)
-  mtext(paste("Adj R2:", round(result$natural_adj_r2, 3), "AIC:", round(result$natural_aic, 2)),
-        side = 3, line = 0.5, cex = 0.7, col = "blue")
-  
-  # Plot original data and B Spline fit
-  plot(tanData_filtered$wl, tanData_filtered[[species]], main = paste("B Spline Fit for", species),
-       xlab = "Wavelength (nm)", ylab = "Reflectance", type = "o", col = color)
-  lines(tanData_filtered$wl, predict(result$b_spline_fit), col = "green", lwd = 2)
-  mtext(paste("Adj R2:", round(result$quartic_adj_r2, 3), "AIC:", round(result$quartic_aic, 2)),
-        side = 3, line = 0.5, cex = 0.7, col = "blue")
-}
-
-# Close the PDF device
-dev.off()
-
-```
-
-
-## Step 6 Print a Summary Table of Spline Fits
-
-```{r}
-# Create the spline summary table with coefficients and goodness-of-fit metrics
-spline_table <- data.frame(
-  Species = names(spline_results),
-  Natural_Spline_Coefficients = sapply(spline_results, function(x) paste(x$natural_coef, collapse = ", ")),
-  b_spline_Coefficients = sapply(spline_results, function(x) paste(x$quartic_coef, collapse = ", ")),
-  Natural_Adj_R2 = sapply(spline_results, function(x) round(x$natural_adj_r2, 3)),
-  Quartic_Adj_R2 = sapply(spline_results, function(x) round(x$quartic_adj_r2, 3)),
-  Natural_AIC = sapply(spline_results, function(x) round(x$natural_aic, 2)),
-  Quartic_AIC = sapply(spline_results, function(x) round(x$quartic_aic, 2))
-)
-
-# Remove row names
-rownames(spline_table) <- NULL
-
-# Display the table in the document without row names
-kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
-  kable_styling(bootstrap_options = "striped", full_width = F)
-
-# Save the table as a CSV
-write.csv(spline_table, "spline_summary_table.csv", row.names = FALSE)
-
-# Fixing the PDF export by increasing the margins and adjusting the layout
-pdf("spline_summary_table.pdf", width = 11, height = 8.5)
-gridExtra::grid.table(spline_table, rows = NULL)
-dev.off()
-
-```
