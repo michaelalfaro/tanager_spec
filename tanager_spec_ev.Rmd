@@ -503,6 +503,49 @@ dev.off()
 
 ```
 
+
+# Step 6b: Export Spline Data to CSV
+```{r}
+spline_export <- lapply(names(spline_results), function(species_name) {
+  result <- spline_results[[species_name]]
+  data.frame(
+    Species = species_name,
+    Wavelength = tanData_filtered$wl,
+    Natural_Spline_Fitted = predict(result$natural_spline_fit),
+    Cubic_Spline_Fitted = predict(result$cubic_spline_fit),
+    Natural_Spline_Coefficients = paste(result$natural_coef, collapse = ", "),
+    Cubic_Spline_Coefficients = paste(result$cubic_coef, collapse = ", "),
+    Natural_Knots = paste(result$natural_knots, collapse = ", "),
+    Cubic_Knots = paste(result$cubic_knots, collapse = ", ")
+  )
+})
+# Combine all species data into one dataframe
+spline_export_df <- do.call(rbind, spline_export)
+# Save the data to a CSV file
+write.csv(spline_export_df, "spline_data_for_reconstruction.csv", row.names = FALSE)
+# Inform the user
+cat("Spline data for reconstruction has been saved to 'spline_data_for_reconstruction.csv'.\n")
+4:33
+# Step 6c: Reconstruct and Plot Splines from CSV
+spline_data <- read.csv("spline_data_for_reconstruction.csv")
+# Function to plot the splines from the CSV data
+plot_spline_from_csv <- function(species_name, spline_data) {
+  species_data <- spline_data %>% filter(Species == species_name)
+  # Plot Natural Spline
+  plot(species_data$Wavelength, species_data$Natural_Spline_Fitted, type = "l", col = "blue", lwd = 2,
+       main = paste("Natural Spline -", species_name),
+       xlab = "Wavelength (nm)", ylab = "Reflectance")
+  # Plot Cubic Spline
+  lines(species_data$Wavelength, species_data$Cubic_Spline_Fitted, col = "red", lwd = 2)
+  legend("topright", legend = c("Natural Spline", "Cubic Spline"), col = c("blue", "red"), lwd = 2)
+}
+# Plot all species
+for (species_name in unique(spline_data$Species)) {
+  plot_spline_from_csv(species_name, spline_data)
+}
+
+```
+
 ### Step 7 Save data objects for beast run
 
 
@@ -627,7 +670,7 @@ library(kableExtra)
 
 ## Testing DF range in ns Function
 
-```{r, message=FALSE, warning=FALSE}
+```{message=FALSE, warning=FALSE}
 
 
 
@@ -777,7 +820,7 @@ spline_table_df_ordered <- cbind(degrees_of_freedom, spline_table_df_ordered)
 
 ## Testing DF range in bs Function
 
-```{r, message=FALSE, warning=FALSE}
+```{message=FALSE, warning=FALSE}
 
 
 
@@ -928,7 +971,7 @@ spline_table_df_ordered <- cbind(degrees_of_freedom, spline_table_df_ordered)
 
 ## Comparing results between ns and bs functions
 
-```{r, message=FALSE, warning=FALSE}
+```{message=FALSE, warning=FALSE}
 
 
 
@@ -1079,147 +1122,188 @@ spline_table_df_ordered <- cbind(degrees_of_freedom, spline_table_df_ordered)
 
 
 ## Knot placement comparison
+### NOTE: Run chunks initialization through Step 3 if working on this chunk
+```{r}
 
-```{r, message=FALSE, warning=FALSE}
 
 
-  # Function to fit a natural spline and a b spline, returning the models, coefficients, and goodness-of-fit metrics
-  fit_splines <- function(wl, reflectance) {
-    # Fit natural b spline
-    natural_spline_fit <- lm(reflectance ~ ns(wl, df = 8))
+# function that records spline data
+# records degree of function, # of internal and boundary knots and their placement
+natural_spline_data <- function(wl, reflectance){
+  
+  natural_spline <- ns(wl, df = 5)
+
+  natural_spline_fit_data <- attributes(natural_spline)
+  
+  return(list(
+    degree = natural_spline_fit_data$degree,
+    internal_knots = natural_spline_fit_data$knots,
+    boundary_knots = natural_spline_fit_data$Boundary.knots
+  ))
     
-    # Fit b spline
-    natural_spline_fit_restrained_knots <- lm(reflectance ~ ns(wl, Boundary.knots = c(300,700),
-                                                               knots = seq(350,650, by = 50)))
+}
+
+# applies the above function to tanager dataset
+natural_spline_results <- lapply(tanData_filtered[-1], function(reflectance){
+  natural_spline_data(tanData_filtered$wl, reflectance)
+}
+)
+
+
+# Determination of the boundary knots and that their location is uniform for each species
+
+# Data frame of the data
+internal_knots_placement <- NULL
+
+# Vector to store temporary data from for loop for the data frame
+placeholder_vector <- NULL
+
+# For loop that gathers the natural spline data
+for (species_name in names(spline_results)){
+  placeholder_vector <- natural_spline_results[[species_name]]
+  knot_placement <- placeholder_vector$internal_knots
+  internal_knots_placement <- rbind(internal_knots_placement, knot_placement)
+}
+
+# Converts the data into a data frame and applies species' names to the rows
+internal_knots_placement <- data.frame(internal_knots_placement)
+rownames(internal_knots_placement) <- names(spline_results)
+
+# Verification that internal knot placement is uniform
+
+# Vector that captures the df used in for the natural spline
+dimensions <- dim(internal_knots_placement)
+
+# Vector that holds the knot placements
+knots_vector <- NA
+
+# For loop that turns the data frame into a vector
+# Uses dimensions[2] for versatility (can be used for any df)
+for (i in 1:dimensions[2]){
+  x <- as.numeric(internal_knots_placement[,i])
+  knots_vector <- c(knots_vector,x)
+}
+
+# NA omission
+knots_vector <- na.omit(knots_vector)
+
+# Visualization that data is uniform
+hist(knots_vector, main = "Internal Knots Placement for Each Species", col = "yellow",
+     ylab = "Frequency", xlab = "Wavelength (nm)")
+
+# Further confirmation using logical vectors
+
+# Turn the knots vector into a data frame to use count function
+knots_dataframe <- data.frame(knots_vector)
+
+# Counts the # of values for each knot's wavelength placement 
+knots_counts <- knots_dataframe %>% count(knots_vector)
+
+# # of species in our data
+# Each wavelength should appear this amount of times if the knot placement is uniform
+length(names(spline_results))
+
+# For loop to verify that each wavelength appears 51 times
+# If so, we should see 4 TRUEs as the output
+for (i in 1:dimensions[2]){
+  print(length(names(spline_results)) == knots_counts[i,2])
+}
+
+
+# For loop that looks at the degrees of freedom from 2:42
+# Presently, there is a section for graphing each outcome but does not use space
+# efficiently. Still a work in progress. The rest works as intended
+for (i in 2:41){
+  natural_spline_data <- function(wl, reflectance){
+  
+  natural_spline <- ns(wl, df = i)
+
+  natural_spline_fit_data <- attributes(natural_spline)
+  
+  return(list(
+    degree = natural_spline_fit_data$degree,
+    internal_knots = natural_spline_fit_data$knots,
+    boundary_knots = natural_spline_fit_data$Boundary.knots
+  ))
     
-    # Extract coefficients
-    natural_coef <- round(coef(natural_spline_fit), 2)
-    natural_restknots_coef <- round(coef(natural_spline_fit_restrained_knots), 2)
-    
-    # Calculate goodness-of-fit metrics
-    natural_adj_r2 <- summary(natural_spline_fit)$adj.r.squared
-    natural_restknots_adj_r2 <- summary(natural_spline_fit_restrained_knots)$adj.r.squared
-    
-    natural_aic <- AIC(natural_spline_fit)
-    natural_restknots_aic <- AIC(natural_spline_fit_restrained_knots)
-    
-    return(list(
-      natural_spline_fit = natural_spline_fit,
-      natural_restknots_spline_fit = natural_spline_fit_restrained_knots,
-      natural_coef = natural_coef,
-      natural_restknots_coef = natural_restknots_coef,
-      natural_adj_r2 = natural_adj_r2,
-      natural_restknots_adj_r2 = natural_restknots_adj_r2,
-      natural_aic = natural_aic,
-      natural_restknots_aic = natural_restknots_aic
-    ))
+}
+
+natural_spline_results <- lapply(tanData_filtered[-1], function(reflectance){
+  natural_spline_data(tanData_filtered$wl, reflectance)
+}
+)
+
+
+internal_knots_placement <- NULL
+placeholder_vector <- NULL
+for (species_name in names(spline_results)){
+  placeholder_vector <- natural_spline_results[[species_name]]
+  knot_placement <- placeholder_vector$internal_knots
+  internal_knots_placement <- rbind(internal_knots_placement, knot_placement)
+}
+internal_knots_placement <- data.frame(internal_knots_placement)
+rownames(internal_knots_placement) <- names(spline_results)
+head(internal_knots_placement)
+
+
+par(mfrow=c(2,2))
+dimensions <- dim(internal_knots_placement)
+knots_vector <- NA
+for (j in 1:dimensions[2]){
+  x <- as.numeric(internal_knots_placement[,j])
+  knots_vector <- c(knots_vector,x)
+  }
+knots_vector <- na.omit(knots_vector)
+
+#hist(knots_vector, main = "Internal Knots Placement", col = "yellow",
+#     ylab = "Frequency", xlab = "Wavelength (nm)", breaks = seq(300,700, length.out = #i), right = TRUE)
+
+
+knots_dataframe <- data.frame(knots_vector)
+knots_counts <- knots_dataframe %>% count(knots_vector)
+
+
+# Created a system to verify each case (# of df) has uniform internal knot placement
+# that does not lead to hundreds of TRUEs in the output
+
+# Check vector that is the size of df
+checker <- rep(NA, dimensions[2])
+
+# For loop that checks if the length of each knot placement is equivalent to the # of     species
+for (k in 1:dimensions[2]){
+  if (length(names(spline_results)) != knots_counts[k,2]){
+  checker[k] <- FALSE
   }
   
-  # Apply the spline fitting function to each species
-  spline_results <- lapply(tanData_filtered[-1], function(reflectance) {
-    fit_splines(tanData_filtered$wl, reflectance)
-  })
-  
-  spline_table <- data.frame(
-    Species = names(spline_results),
-    Natural_Spline_Coefficients = sapply(spline_results, function(x) paste(x$natural_coef, collapse = ", ")),
-    natural_restknots_Spline_Coefficients = sapply(spline_results, function(x) paste(x$natural_restknots_coef, collapse = ", ")),
-    Natural_Adj_R2 = sapply(spline_results, function(x) round(x$natural_adj_r2, 3)),
-    natural_restknots_Adj_R2 = sapply(spline_results, function(x) round(x$natural_restknots_adj_r2, 3)),
-    Natural_AIC = sapply(spline_results, function(x) round(x$natural_aic, 2)),
-    natural_restknots_AIC = sapply(spline_results, function(x) round(x$natural_restknots_aic, 2))
-  )
-  
-  # Remove row names
-  rownames(spline_table) <- NULL
-  
-  # Display the table in the document without row names
-  kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
-    kable_styling(bootstrap_options = "striped", full_width = F)
-  
-  # Save the table as a CSV
-  write.csv(spline_table, "spline_df_summary_table.csv", row.names = FALSE)
-  
-  
-
-dev.off()
-# ordering by species the collection of spline functions w/ varying df (3:41)
-spline_table_df_ordered <- arrange(spline_table_df_all, spline_table_df_all$Species)
-
-degrees_of_freedom <- rep(c(1:41),51)
-
-spline_table_df_ordered <- cbind(degrees_of_freedom, spline_table_df_ordered)
-  # Display the table in the document without row names
-  kable(spline_table_df_ordered, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
-    kable_styling(bootstrap_options = "striped", full_width = F)
-  
-  
-  
-
-  # Function to fit a natural spline and a b spline, returning the models, coefficients, and goodness-of-fit metrics
-  fit_splines <- function(wl, reflectance) {
-    # Fit natural b spline
-    natural_spline_fit <- lm(reflectance ~ ns(wl, df = 9))
-    
-    # Fit b spline
-    natural_spline_fit_restrained_knots <- lm(reflectance ~ ns(wl, Boundary.knots = c(300,700),
-                                                               knots = seq(350,650, by = 50)))
-    
-    # Extract coefficients
-    natural_coef <- round(coef(natural_spline_fit), 2)
-    natural_restknots_coef <- round(coef(natural_spline_fit_restrained_knots), 2)
-    
-    # Calculate goodness-of-fit metrics
-    natural_adj_r2 <- summary(natural_spline_fit)$adj.r.squared
-    natural_restknots_adj_r2 <- summary(natural_spline_fit_restrained_knots)$adj.r.squared
-    
-    natural_aic <- AIC(natural_spline_fit)
-    natural_restknots_aic <- AIC(natural_spline_fit_restrained_knots)
-    
-    return(list(
-      natural_spline_fit = natural_spline_fit,
-      natural_restknots_spline_fit = natural_spline_fit_restrained_knots,
-      natural_coef = natural_coef,
-      natural_restknots_coef = natural_restknots_coef,
-      natural_adj_r2 = natural_adj_r2,
-      natural_restknots_adj_r2 = natural_restknots_adj_r2,
-      natural_aic = natural_aic,
-      natural_restknots_aic = natural_restknots_aic
-    ))
+  if (length(names(spline_results)) == knots_counts[k,2]){
+  checker[k] <- TRUE
   }
-  
-  # Apply the spline fitting function to each species
-  spline_results <- lapply(tanData_filtered[-1], function(reflectance) {
-    fit_splines(tanData_filtered$wl, reflectance)
-  })
-  
-  spline_table <- data.frame(
-    Species = names(spline_results),
-    Natural_Spline_Coefficients = sapply(spline_results, function(x) paste(x$natural_coef, collapse = ", ")),
-    natural_restknots_Spline_Coefficients = sapply(spline_results, function(x) paste(x$natural_restknots_coef, collapse = ", ")),
-    Natural_Adj_R2 = sapply(spline_results, function(x) round(x$natural_adj_r2, 3)),
-    natural_restknots_Adj_R2 = sapply(spline_results, function(x) round(x$natural_restknots_adj_r2, 3)),
-    Natural_AIC = sapply(spline_results, function(x) round(x$natural_aic, 2)),
-    natural_restknots_AIC = sapply(spline_results, function(x) round(x$natural_restknots_aic, 2))
-  )
-  
-  # Remove row names
-  rownames(spline_table) <- NULL
-  
-  # Display the table in the document without row names
-  kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
-    kable_styling(bootstrap_options = "striped", full_width = F)
-  
-  # Save the table as a CSV
-  write.csv(spline_table, "spline_df_summary_table.csv", row.names = FALSE)
-  
-  
 
-dev.off()
+  }
 
-  # Display the table in the document without row names
-  kable(spline_table_df_ordered, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
-    kable_styling(bootstrap_options = "striped", full_width = F)
+
+# For loop to reduce the size of checker vector and further verify that all values are    TRUE
+for (k in 1:dimensions[2]){
+  if (checker[k] == TRUE){
+    checker[k] <- NA
+  }
+}
+
+# Removes all NA values
+checker <- na.omit(checker)
+
+# If all values are removed, then all knot placements are uniform
+# Prints a singular output for each df case rather than df outputs
+for (i in 1:1){
+  if (length(checker) == 0){
+    print("Knot Placements are Uniform")
+  }
+}
+
+
+par(mfrow=c(1,1))
+
+}
 
 ```
 
@@ -1275,6 +1359,53 @@ spline_results <- lapply(tanData_filtered[-1], function(reflectance) {
 })
 
 
+pdf(file = "Internal Knot Placement Uniformity Verification", width = 8, height = 12,paper = "letter", )
+for (i in 2:41){
+  natural_spline_data <- function(wl, reflectance){
+  
+  natural_spline <- ns(wl, df = i)
+
+  natural_spline_fit_data <- attributes(natural_spline)
+  
+  return(list(
+    degree = natural_spline_fit_data$degree,
+    internal_knots = natural_spline_fit_data$knots,
+    boundary_knots = natural_spline_fit_data$Boundary.knots
+  ))
+    
+}
+
+natural_spline_results <- lapply(tanData_filtered[-1], function(reflectance){
+  natural_spline_data(tanData_filtered$wl, reflectance)
+}
+)
+
+
+internal_knots_placement <- NULL
+placeholder_vector <- NULL
+for (species_name in names(spline_results)){
+  placeholder_vector <- natural_spline_results[[species_name]]
+  knot_placement <- placeholder_vector$internal_knots
+  internal_knots_placement <- rbind(internal_knots_placement, knot_placement)
+}
+internal_knots_placement <- data.frame(internal_knots_placement)
+rownames(internal_knots_placement) <- names(spline_results)
+
+
+dimensions <- dim(internal_knots_placement)
+knots_vector <- NA
+for (j in 1:dimensions[2]){
+  x <- as.numeric(internal_knots_placement[,j])
+  knots_vector <- c(knots_vector,x)
+  }
+knots_vector <- na.omit(knots_vector)
+
+
+hist(knots_vector, main = "Internal Knots Placement", col = i,
+    ylab = "Frequency", xlab = "Wavelength (nm)", breaks = seq(300,700, length.out = i), right = TRUE)
+}
+dev.off()
+dev.off()
 
 ```
 
