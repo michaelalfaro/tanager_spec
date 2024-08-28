@@ -17,7 +17,7 @@ library(ggtree)
 library(splines)
 library(knitr)
 library(kableExtra)
-
+library(gridExtra)
 ```
 
 ### initialization
@@ -670,7 +670,7 @@ library(kableExtra)
 
 ## Testing DF range in ns Function
 
-```{message=FALSE, warning=FALSE}
+```{r, warning=FALSE}
 
 
 
@@ -1443,8 +1443,6 @@ model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 1] <- "
 model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 2] <- "Either"
 
 
-ggplot(data = model_scoring, aes(x = Natural_AIC, fill = Preferred_Model_Name)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
-
 
 model_scoring <- model_scoring %>% 
   group_by(Species) %>%
@@ -1474,25 +1472,18 @@ model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 1] <- "Cubic"
 model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 2] <- "Either"
 
 
-ggplot(data = model_scoring, aes(x = Best_Fit, fill = Model_of_Best_Fit)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
+R2_plot <- ggplot(data = model_scoring, aes(x = Best_Fit, fill = Model_of_Best_Fit)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
+
+AIC_plot <- ggplot(data = model_scoring, aes(x = Preferred_Model, fill = Preferred_Model_Name)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
+
+grid.arrange(R2_plot, AIC_plot, ncol = 1)
 
 
+ggplot(data = model_scoring, aes(x = Natural_AIC, y = Cubic_AIC, color = Species)) + geom_point() + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural AIC Score") + ylab("Cubic AIC Score") + ggtitle("AIC Scores", subtitle = "Cubic vs. Natural Splines")
 
 
+ggplot(data = model_scoring, aes(x = Natural_Adj_R2, y = Cubic_Adj_R2, color = Species)) + geom_point() + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural R^2 Score") + ylab("Cubic R^2 Score") + ggtitle("R^2 Scores", subtitle = "Cubic vs. Natural Splines")
 
-par(mfrow=c(1,2))
-
-ggplot(data = model_scoring, aes(x = Best_Fit, fill = Model_of_Best_Fit)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
-ggplot(data = model_scoring, aes(x = Natural_AIC, fill = Preferred_Model_Name)) + geom_histogram() + scale_fill_brewer(palette = "Spectral")
-hist(spline_table$Natural_Adj_R2, breaks = seq(0,1, length.out = 50))
-hist(spline_table$Cubic_Adj_R2, breaks = seq(0,1, length.out = 50))
-par(mfrow=c(2,1))
-
-
-
-hist(spline_table$Natural_AIC, breaks = seq(min(spline_table$Natural_AIC),max(spline_table$Natural_AIC), length.out = 50))
-hist(spline_table$Cubic_AIC, breaks = seq(min(spline_table$Cubic_AIC),max(spline_table$Cubic_AIC), length.out = 50))
-par(mfrow=c(1,1))
 
 ```
 
