@@ -103,7 +103,7 @@ head(tanData_filtered)
 # Function to fit a natural spline and a cubic spline, returning the models, coefficients, goodness-of-fit metrics, and RGB colors
 fit_splines <- function(wl, reflectance) {
   # Fit natural cubic spline
-  natural_spline_fit <- lm(reflectance ~ ns(wl, df = 5))
+  natural_spline_fit <- lm(log(reflectance) ~ ns(wl, df = 10))
   
   # Fit cubic spline
   cubic_spline_fit <- lm(reflectance ~ poly(wl, 3, raw = TRUE))
@@ -962,7 +962,7 @@ for (i in 1:1){
     fit_splines(tanData_filtered$wl, reflectance)
   })
   
-  spline_table <- data.frame(
+  spline_table_df_bs <- data.frame(
     Species = names(spline_results),
     b_Spline_Coefficients = sapply(spline_results, function(x) paste(x$b_coef, collapse = ", ")),
     Cubic_Spline_Coefficients = sapply(spline_results, function(x) paste(x$cubic_coef, collapse = ", ")),
@@ -973,14 +973,14 @@ for (i in 1:1){
   )
   
   # Remove row names
-  rownames(spline_table) <- NULL
+  rownames(spline_table_df_bs) <- NULL
   
   # Display the table in the document without row names
-  kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
+  kable(spline_table_df_bs, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
     kable_styling(bootstrap_options = "striped", full_width = F)
   
   # Save the table as a CSV
-  write.csv(spline_table, "spline_df_summary_table.csv", row.names = FALSE)
+  write.csv(spline_table_df_bs, "b_spline_df_summary_table.csv", row.names = FALSE)
   
 # for loop up above sets up dataframe for the data from the for loop below to attach to  
   
@@ -1039,8 +1039,8 @@ for (i in 1:1){
       kable_styling(bootstrap_options = "striped", full_width = F)
     
     if (j == 2){
-    spline_table_df_all <- rbind(spline_table, spline_table_df)
-    rm(spline_table)}
+    spline_table_df_all <- rbind(spline_table_df_bs, spline_table_df)
+    rm(spline_table_df_bs)}
     else if (j > 2){
     spline_table_df_all <- rbind(spline_table_df_all, spline_table_df)
     }
@@ -1084,6 +1084,49 @@ spline_table_df_ordered <- spline_table_df_ordered[,c(1,2,3,9,4,5,10,6,7,11,8)]
 ```
 
 
+## How does increasing df in ns and bs function impact goodness-of-fit metrics?
+
+```{r}
+
+head(spline_table_df_ordered)
+
+position_vector <- NULL
+
+for (species_name in names(spline_results)){
+  name_vector <- as.character(species_name)
+  position <- (which(rgb_colors_names == name_vector))
+  position_vector <- rbind(position_vector, position)
+}
+
+tanager_subset_colors <- rgb_colors[c(position_vector)]
+
+name_vector <- NULL
+
+par(mfrow=c(2,2), mar = c(5.1, 5.1, 2.1, 1.1))
+
+for (species_name in names(spline_results)){
+  name_vector <- as.character(species_name)
+  
+  gof_metrics <- spline_table_df_ordered %>%
+    filter(Species == name_vector) %>%
+    select(df, Species, Natural_Spline_Coefficients, b_Spline_Coefficients, 
+           Cubic_Spline_Coefficients, Natural_Adj_R2, b_Adj_R2 ,Cubic_Adj_R2, 
+           Natural_AIC, b_AIC ,Cubic_AIC)
+  
+  plot(x = gof_metrics$df, y = gof_metrics$Natural_Adj_R2, main = paste(name_vector, "Natural Spline", collapse = ""), pch = 19, col = c(tanager_subset_colors[name_vector]), xlab = "", ylab = expression("R" ^  2), ylim = c(min(c(gof_metrics$Natural_Adj_R2, gof_metrics$b_Adj_R2)), max(c(gof_metrics$Natural_Adj_R2, gof_metrics$b_Adj_R2))))
+  
+     plot(x = gof_metrics$df, y = gof_metrics$b_Adj_R2, main = paste(name_vector, "Basis Spline"), col = c(tanager_subset_colors[name_vector]), pch = 19, xlab = "", ylab = "", ylim = c(min(c(gof_metrics$Natural_Adj_R2, gof_metrics$b_Adj_R2)), max(c(gof_metrics$Natural_Adj_R2, gof_metrics$b_Adj_R2))))
+     
+   plot(x = gof_metrics$df, y = gof_metrics$Natural_AIC, col = c(tanager_subset_colors[name_vector]), ylab = "AIC Scores", xlab = "Degrees of Freedom", pch = 19, ylim = c(min(c(gof_metrics$Natural_AIC, gof_metrics$b_AIC)), max(c(gof_metrics$Natural_AIC, gof_metrics$b_AIC))))
+
+  plot(x = gof_metrics$df, y = gof_metrics$b_AIC, col = c(tanager_subset_colors[name_vector]), ylab = "", xlab = "Degrees of Freedom", pch = 19, ylim = c(min(c(gof_metrics$Natural_AIC, gof_metrics$b_AIC)), max(c(gof_metrics$Natural_AIC, gof_metrics$b_AIC))))
+}
+
+par(mfrow=c(1,1))
+
+```
+
+
 
 
 ## Knot placement comparison : Natural Splines
@@ -1096,7 +1139,7 @@ spline_table_df_ordered <- spline_table_df_ordered[,c(1,2,3,9,4,5,10,6,7,11,8)]
 # records degree of function, # of internal and boundary knots and their placement
 natural_spline_data <- function(wl, reflectance){
   
-  natural_spline <- ns(wl, df = 5)
+  natural_spline <- ns(wl, df = 7)
 
   natural_spline_fit_data <- attributes(natural_spline)
   
@@ -1610,7 +1653,7 @@ print(knot_placement)
 
 
 
-# AIC and R^2 distributions
+# AIC and R^2 distributions (ns vs. cubic)
 ```{r, message = FALSE, warning=FALSE}
 # Run everything through chunk Step 6
 
@@ -1680,12 +1723,121 @@ AIC_plot <- ggplot(data = model_scoring, aes(x = Preferred_Model, fill = Preferr
 
 grid.arrange(R2_plot, AIC_plot, ncol = 1)
 
+name_vector <- NULL
+position <- NULL
+position_vector <- NULL
 
-ggplot(data = model_scoring, aes(x = Natural_AIC, y = Cubic_AIC, color = Species)) + geom_point() + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural AIC Score") + ylab("Cubic AIC Score") + ggtitle("AIC Scores", subtitle = "Cubic vs. Natural Splines")
+for (species_name in names(spline_results)){
+  name_vector <- as.character(species_name)
+  position <- (which(rgb_colors_names == name_vector))
+  position_vector <- rbind(position_vector, position)
+}
+
+tanager_subset_colors <- rgb_colors[c(position_vector)]
 
 
-ggplot(data = model_scoring, aes(x = Natural_Adj_R2, y = Cubic_Adj_R2, color = Species)) + geom_point() + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural R^2 Score") + ylab("Cubic R^2 Score") + ggtitle("R^2 Scores", subtitle = "Cubic vs. Natural Splines")
+title_for_legend <- "Species"
+
+ggplot(data = model_scoring, aes(x = Natural_AIC, y = Cubic_AIC)) + geom_point(aes(color = names(tanager_subset_colors))) + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural AIC Score") + ylab("Cubic AIC Score") + ggtitle("AIC Scores", subtitle = "Cubic vs. Natural Splines") + scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
+
+ggplot(data = model_scoring, aes(x = Natural_Adj_R2, y = Cubic_Adj_R2)) + geom_point(aes(color = names(tanager_subset_colors))) + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural R^2 Score") + ylab("Cubic R^2 Score") + ggtitle("R^2 Scores", subtitle = "Cubic vs. Natural Splines") + scale_color_manual(title_for_legend, values = as.character(tanager_subset_colors))
 
 
 ```
 
+
+## AIC and R^2 distributions (ns vs. bs)
+
+
+```{r}
+
+row_extraction <- seq(from = 5, to = 2055, by = 41)
+
+
+model_scoring <- spline_table_df_ordered[row_extraction, c(1,2,6,7,9,10)]
+
+# verifying that the df are all the same
+print(unique(model_scoring$df))
+
+model_scoring <- model_scoring %>% 
+  group_by(Species) %>%
+  mutate(Preferred_Model = min(c(Natural_AIC, b_AIC)))
+
+preferred_model_name <- rep(NA, length(model_scoring$Species))
+for (i in 1:length(model_scoring$Species)){
+  if (model_scoring[i,7] == model_scoring[i,5]){
+    preferred_model_name[i] <- 0
+  }
+  else if (model_scoring[i,7] == model_scoring[i,6]){
+    preferred_model_name[i] <- 1
+  }
+  else if (model_scoring[i,7] == model_scoring[i,5] & model_scoring[i,7] == model_scoring[i,6]){
+    preferred_model_name[i] <- 2
+  }
+    }
+
+model_scoring <- cbind(model_scoring, preferred_model_name)
+column_names <- colnames(model_scoring)
+column_names[8] <- "Preferred_Model_Name"
+colnames(model_scoring) <- column_names
+
+model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 0] <- "Natural"
+model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 1] <- "Basis"
+model_scoring$Preferred_Model_Name[model_scoring$Preferred_Model_Name == 2] <- "Either"
+
+
+
+model_scoring <- model_scoring %>% 
+  group_by(Species) %>%
+  mutate(Best_Fit = max(c(Natural_Adj_R2, b_Adj_R2)))
+
+best_fit_model <- rep(NA, length(model_scoring$Species))
+for (i in 1:length(model_scoring$Species)){
+  if (model_scoring[i,9] == model_scoring[i,3]){
+    best_fit_model[i] <- 0
+  }
+  else if (model_scoring[i,9] == model_scoring[i,4]){
+    best_fit_model[i] <- 1
+  }
+  else if (model_scoring[i,9] == model_scoring[i,3] & model_scoring[i,4] == model_scoring[i,9]){
+    best_fit_model[i] <- 2
+  }
+    }
+
+
+model_scoring <- cbind(model_scoring, best_fit_model)
+column_names <- colnames(model_scoring)
+column_names[10] <- "Model_of_Best_Fit"
+colnames(model_scoring) <- column_names
+
+model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 0] <- "Natural"
+model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 1] <- "Basis"
+model_scoring$Model_of_Best_Fit[model_scoring$Model_of_Best_Fit == 2] <- "Either"
+
+
+R2_plot <- ggplot(data = model_scoring, aes(x = Best_Fit, fill = Model_of_Best_Fit)) + geom_histogram() + scale_fill_brewer(palette = "Spectral") + xlab("R^2 Value") + ylab("Frequency")
+
+AIC_plot <- ggplot(data = model_scoring, aes(x = Preferred_Model, fill = Preferred_Model_Name)) + geom_histogram() + scale_fill_brewer(palette = "Spectral") + xlab("AIC Score") + ylab("Frequency")
+
+grid.arrange(R2_plot, AIC_plot, ncol = 1)
+
+name_vector <- NULL
+position <- NULL
+position_vector <- NULL
+
+for (species_name in names(spline_results)){
+  name_vector <- as.character(species_name)
+  position <- (which(rgb_colors_names == name_vector))
+  position_vector <- rbind(position_vector, position)
+}
+
+tanager_subset_colors <- rgb_colors[c(position_vector)]
+
+
+title_for_legend <- "Species"
+
+ggplot(data = model_scoring, aes(x = Natural_AIC, y = b_AIC)) + geom_point(aes(color = names(tanager_subset_colors))) + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural AIC Score") + ylab("Basis AIC Score") + ggtitle("AIC Scores", subtitle = "Basis vs. Natural Splines") + scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
+
+ggplot(data = model_scoring, aes(x = Natural_Adj_R2, y = b_Adj_R2)) + geom_point(aes(color = names(tanager_subset_colors))) + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural R^2 Score") + ylab("Basis R^2 Score") + ggtitle("R^2 Scores", subtitle = "Basis vs. Natural Splines") + scale_color_manual(title_for_legend, values = as.character(tanager_subset_colors))
+
+```
