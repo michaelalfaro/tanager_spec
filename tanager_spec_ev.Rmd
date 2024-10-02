@@ -1743,6 +1743,7 @@ ggplot(data = model_scoring, aes(x = Natural_AIC, y = Cubic_AIC)) + geom_point(a
 ggplot(data = model_scoring, aes(x = Natural_Adj_R2, y = Cubic_Adj_R2)) + geom_point(aes(color = names(tanager_subset_colors))) + theme(legend.key.size = unit(0.5, "cm")) + geom_abline(intercept = 0, slope = 1) + xlab("Natural R^2 Score") + ylab("Cubic R^2 Score") + ggtitle("R^2 Scores", subtitle = "Cubic vs. Natural Splines") + scale_color_manual(title_for_legend, values = as.character(tanager_subset_colors))
 
 
+
 ```
 
 
