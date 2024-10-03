@@ -2025,3 +2025,98 @@ grid.table(spline_table[,11:20], rows = NULL)
 dev.off()
 
 ```
+
+```{r}
+
+
+# What model is preferred using AIC Scores
+
+model_scoring <- spline_table[,c(1,4:9)]
+
+model_scoring <- model_scoring %>% 
+  group_by(Species) %>%
+  mutate(Preferred_Model_AIC = min(c(Reflectance_AIC, Log_Reflectance_AIC)))
+
+preferred_model_name <- rep(NA, length(model_scoring$Species))
+for (i in 1:length(model_scoring$Species)){
+  if (model_scoring[i,8] == model_scoring[i,2]){
+    preferred_model_name[i] <- 0
+  }
+  else if (model_scoring[i,8] == model_scoring[i,3]){
+    preferred_model_name[i] <- 1
+  }
+  else if (model_scoring[i,8] == model_scoring[i,2] & model_scoring[i,3] == model_scoring[i,8]){
+    preferred_model_name[i] <- 2
+  }
+    }
+
+model_scoring <- cbind(model_scoring, preferred_model_name)
+column_names <- colnames(model_scoring)
+column_names[9] <- "Preferred_Model_Name_AIC"
+colnames(model_scoring) <- column_names
+
+model_scoring$Preferred_Model_Name_AIC[model_scoring$Preferred_Model_Name_AIC == 0] <- "Reflectance"
+model_scoring$Preferred_Model_Name_AIC[model_scoring$Preferred_Model_Name_AIC == 1] <- "Log Reflectance"
+model_scoring$Preferred_Model_Name_AIC[model_scoring$Preferred_Model_Name_AIC == 2] <- "Either"
+
+
+# What model is preferred using BIC Scores
+
+
+model_scoring <- model_scoring %>% 
+  group_by(Species) %>%
+  mutate(Preferred_Model_BIC = min(c(Reflectance_BIC, Log_Reflectance_BIC)))
+
+preferred_model_name <- rep(NA, length(model_scoring$Species))
+for (i in 1:length(model_scoring$Species)){
+  if (model_scoring[i,10] == model_scoring[i,4]){
+    preferred_model_name[i] <- 0
+  }
+  else if (model_scoring[i,10] == model_scoring[i,5]){
+    preferred_model_name[i] <- 1
+  }
+  else if (model_scoring[i,10] == model_scoring[i,4] & model_scoring[i,5] == model_scoring[i,10]){
+    preferred_model_name[i] <- 2
+  }
+    }
+
+model_scoring <- cbind(model_scoring, preferred_model_name)
+column_names <- colnames(model_scoring)
+column_names[11] <- "Preferred_Model_Name_BIC"
+colnames(model_scoring) <- column_names
+
+model_scoring$Preferred_Model_Name_BIC[model_scoring$Preferred_Model_Name_BIC == 0] <- "Reflectance"
+model_scoring$Preferred_Model_Name_BIC[model_scoring$Preferred_Model_Name_BIC == 1] <- "Log Reflectance"
+model_scoring$Preferred_Model_Name_BIC[model_scoring$Preferred_Model_Name_BIC == 2] <- "Either"
+
+
+# What model is preferred using logLik Scores
+
+
+model_scoring <- model_scoring %>% 
+  group_by(Species) %>%
+  mutate(Preferred_Model_logLik = max(c(Reflectance_logLik, Log_Reflectance_logLik)))
+
+preferred_model_name <- rep(NA, length(model_scoring$Species))
+for (i in 1:length(model_scoring$Species)){
+  if (model_scoring[i,12] == model_scoring[i,6]){
+    preferred_model_name[i] <- 0
+  }
+  else if (model_scoring[i,12] == model_scoring[i,7]){
+    preferred_model_name[i] <- 1
+  }
+  else if (model_scoring[i,12] == model_scoring[i,6] & model_scoring[i,7] == model_scoring[i,12]){
+    preferred_model_name[i] <- 2
+  }
+    }
+
+model_scoring <- cbind(model_scoring, preferred_model_name)
+column_names <- colnames(model_scoring)
+column_names[13] <- "Preferred_Model_Name_logLik"
+colnames(model_scoring) <- column_names
+
+model_scoring$Preferred_Model_Name_logLik[model_scoring$Preferred_Model_Name_logLik == 0] <- "Reflectance"
+model_scoring$Preferred_Model_Name_logLik[model_scoring$Preferred_Model_Name_logLik == 1] <- "Log Reflectance"
+model_scoring$Preferred_Model_Name_logLik[model_scoring$Preferred_Model_Name_logLik == 2] <- "Either"
+
+```
