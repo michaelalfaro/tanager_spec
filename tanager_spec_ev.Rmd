@@ -1849,20 +1849,23 @@ ggplot(data = model_scoring, aes(x = Natural_Adj_R2, y = b_Adj_R2)) + geom_point
 
 
 # Log-Transformed fits of data
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 library(nlme)
 
+load(file = "quick_reload.RData")
 
   # Function to fit a natural spline and a cubic spline, returning the models, coefficients, and goodness-of-fit metrics
   fit_splines <- function(wl, reflectance) {
     # Fit cubic splines to base reflectance data with 10 degrees of freedom
-    cubic_spline_fit_reflectance <- gls(reflectance ~ ns(wl, df = 10), correlation = 
+    cubic_spline_fit_reflectance <- gls(reflectance ~ bs(wl, df = 10), correlation = 
                                           corAR1(form = ~ 1))
     
     # Fit cubic spline to log-transformed reflectance values with 10 degrees of freedom
-    cubic_spline_fit_log_reflectance <- gls(log(reflectance) ~ ns(wl, df = 10), correlation
+    cubic_spline_fit_log_reflectance <- gls(log(reflectance) ~ bs(wl, df = 10), correlation
                                             = corAR1(form = ~ 1))
+    
+    basis_spline_data <- bs(wl, df = 10)
     
     # Extract coefficients from each set of fits
     reflectance_coef <- round(coef(cubic_spline_fit_reflectance), 2)
@@ -1878,18 +1881,31 @@ library(nlme)
     reflectance_logLik <- summary(cubic_spline_fit_reflectance)$logLik
     log_reflectance_logLik <- summary(cubic_spline_fit_log_reflectance)$logLik
 
+    # Extracts rspec and rgb values from the reflectance curves
+    reflectance_rspec <- as.rspec(data.frame(wl = wl, reflectance = 
+                         predict(cubic_spline_fit_reflectance)), lim = c(300, 700))
+    reflectance_rgb <- spec2rgb(reflectance_rspec)
+  
+    log_reflectance_rspec <- as.rspec(data.frame(wl = wl, reflectance = 
+                          predict(cubic_spline_fit_reflectance)), lim = c(300, 700))
+    log_reflectance_rgb <- spec2rgb(log_reflectance_rspec)
     
     return(list(
       reflectance_spline_fit = cubic_spline_fit_reflectance,
       log_reflectance_spline_fit = cubic_spline_fit_log_reflectance,
-      reflectance_spline_coef = reflectance_coef,
+      reflectance_coef = reflectance_coef,
       log_reflectance_coef = log_reflectance_coef,
       reflectance_AIC = reflectance_AIC,
       log_reflectance_AIC = log_reflectance_AIC,
       reflectance_BIC = reflectance_BIC,
       log_reflectance_BIC = log_reflectance_BIC,
       reflectance_logLik = reflectance_logLik,
-      log_reflectance_logLik = log_reflectance_logLik
+      log_reflectance_logLik = log_reflectance_logLik,
+      reflectance_rgb = reflectance_rgb,
+      log_reflectance_rgb = log_reflectance_rgb,
+      degree = attributes(basis_spline_data)$degree,
+      internal_knots = attributes(basis_spline_data)$knots,
+      boundary_knots = attributes(basis_spline_data)$Boundary.knots
     ))
   }
   
@@ -1904,5 +1920,108 @@ library(nlme)
     fit_splines(tanData_filtered$wl, reflectance)
   })
 
+
+  plot_splines_with_metrics <- function(species_name, wl, reflectance, spline_results, rgb_colors) {
+  result <- spline_results[[species_name]]
+  
+  par(mfrow = c(1, 2))
+  
+  # Splines for Reflectance
+plot(wl, reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Reflectance -", species_name),
+     xlab = "Wavelength (nm)", ylab = "Reflectance")
+lines(wl, predict(result$reflectance_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
+mtext(paste("AIC:", round(result$reflectance_AIC, 3), "BIC:", round(result$reflectance_BIC, 2), "logLik:", round(result$reflectance_logLik)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+
+# Splines for log Reflectance
+plot(wl, log(reflectance), type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Log Reflectance -", species_name),
+     xlab = "Wavelength (nm)", ylab = "Reflectance")
+lines(wl, predict(result$log_reflectance_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
+mtext(paste("AIC:", round(result$log_reflectance_AIC, 3), "BIC:", round(result$log_reflectance_BIC, 2), "logLik:", round(result$log_reflectance_logLik)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+  }
+  
+# Generates the side-by-side plots for each species
+for (species_name in names(spline_results)) {
+  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], spline_results, rgb_colors)
+}
+
+# Creates a pdf of the side-by-side plots
+pdf("reflectance_vs_log_reflectance_with_metrics_7knots.pdf", width = 12, height = 8)
+for (species_name in names(spline_results)) {
+  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], spline_results, rgb_colors)
+}
+dev.off()
+
+
+
+# Creating a data table for all of the model scores, colors of each species, and knot placements
+
+spline_table <- data.frame(
+  Species = names(spline_results),
+  Reflectance_Spline_Coefficients = sapply(spline_results, function(x) paste(x$reflectance_coef, collapse = ", ")),
+  Log_Reflectance_Spline_Coefficients = sapply(spline_results, function(x) paste(x$log_reflectance_coef, collapse = ", ")),
+  Reflectance_AIC = sapply(spline_results, function(x) round(x$reflectance_AIC, 2)),
+  Log_Reflectance_AIC = sapply(spline_results, function(x) round(x$log_reflectance_AIC, 2)),  
+  Reflectance_BIC = sapply(spline_results, function(x) round(x$reflectance_BIC, 2)),
+  Log_Reflectance_BIC = sapply(spline_results, function(x) round(x$log_reflectance_BIC, 2)),
+  Reflectance_logLik = sapply(spline_results, function(x) round(x$reflectance_logLik, 2)),
+  Log_Reflectance_logLik = sapply(spline_results, function(x) round(x$log_reflectance_logLik, 2)),
+  Degree = sapply(spline_results, function(x) c(x$degree)),
+  RGB_Color = sapply(spline_results, function(x) c(x$reflectance_rgb))
+  )
+
+
+Internal_Knots = sapply(spline_results, function(x) c(x$internal_knots))
+Internal_Knots <- t(Internal_Knots)
+
+name_vector <- NULL
+Internal_Knots_names <- NULL
+for (i in 1:dim(Internal_Knots)[2]){
+
+name_vector <- c(paste("Internal_knot_"))
+number_vector <- paste(i)
+name_vector <- paste(name_vector, number_vector, sep = '')
+Internal_Knots_names <- rbind(Internal_Knots_names, name_vector)
+}
+colnames(Internal_Knots) <- Internal_Knots_names
+
+Boundary_Knots = sapply(spline_results, function(x) c(x$boundary_knots))
+Boundary_Knots <- t(Boundary_Knots)
+name_vector <- NULL
+Boundary_Knots_names <- NULL
+for (i in 1:dim(Boundary_Knots)[2]){
+
+name_vector <- c(paste("Boundary_knot_"))
+number_vector <- paste(i)
+name_vector <- paste(name_vector, number_vector, sep = '')
+Boundary_Knots_names <- rbind(Boundary_Knots_names, name_vector)
+}
+colnames(Boundary_Knots) <- Boundary_Knots_names
+
+
+spline_table <- cbind(spline_table, Internal_Knots)
+spline_table <- cbind(spline_table, Boundary_Knots)
+
+
+# Remove row names
+rownames(spline_table) <- NULL
+
+# Display the table in the document without row names
+kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+
+
+pdf("spline_summary_table_reflect_and_logreflect.pdf", width = 30, height = 20)
+grid.newpage()
+grid.table(spline_table[,1:10], rows = NULL)
+grid.newpage()
+grid.table(spline_table[,11:20], rows = NULL)
+dev.off()
 
 ```
