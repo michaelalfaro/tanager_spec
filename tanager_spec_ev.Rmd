@@ -26,7 +26,7 @@ library(nlme)
 
 ```{r}
 suppressMessages({
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
 
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
   wl <- dat[[1]][, 1]
@@ -55,7 +55,7 @@ suppressMessages({
 get the tanagers only
 
 ```{r, message=FALSE, warning=FALSE}
-treepath <- "C:/Users/batra/Documents/tanager_spec/tanager_spec/data/MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 tt <- read.nexus(treepath)
 
 # Extract the tip labels (species names) from the tree
@@ -526,7 +526,7 @@ spline_export_df <- do.call(rbind, spline_export)
 # Save the data to a CSV file
 write.csv(spline_export_df, "spline_data_for_reconstruction.csv", row.names = FALSE)
 # Inform the user
-cat("Spline data for reconstruction has been saved to 'spline_data_for_reconstruction.csv'.\n")
+cat("Spline data for reconstruction has been saved to 'spline_data_for_reconstruction.csv'.\\\\n")
 4:33
 # Step 6c: Reconstruct and Plot Splines from CSV
 spline_data <- read.csv("spline_data_for_reconstruction.csv")
@@ -559,7 +559,7 @@ for (species_name in unique(spline_data$Species)) {
 save(tanagerTree, tanData_filtered, spline_results, file = "tanager_analysis_results.RData")
 
 # Inform the user that the data has been saved
-cat("The Tanager tree, data, and spline results have been saved to 'tanager_analysis_results.RData'.\n")
+cat("The Tanager tree, data, and spline results have been saved to 'tanager_analysis_results.RData'.\\\\n")
 
 ```
 
@@ -2158,24 +2158,7 @@ ggplot(data = model_scoring, aes(x = Reflectance_logLik, y = Log_Reflectance_log
 ```
 
 
-# Exporting DATA to BEAST
 
-```{r}
-
-
-reflectance_spline_coefficients_exports <- spline_table[,1:2]
-
-write.csv(reflectance_spline_coefficients_exports, file = "test.csv")
-
-
-x <- c(reflectance_spline_coefficients_exports$Reflectance_Spline_Coefficients[1])
-
-as.numeric(x)
-
-log_reflectance_spline_coefficients_exports <-
-
-
-```
 
 
 
@@ -3043,7 +3026,7 @@ ggplot(data = model_scoring, aes(x = Reflectance_logLik, y = Log_Reflectance_log
 
 # Ideal Knot Number Based on Model Score
 
-```{r, message=FALSE, warning=FALSE}
+```{message=FALSE, warning=FALSE}
 
 # Model Scores slightly punished for adding more knots, but log-transforming data has better model
 # scores for every number of knots
@@ -3052,6 +3035,7 @@ ggplot(data = model_scoring, aes(x = Reflectance_logLik, y = Log_Reflectance_log
 # Setup -------------------------------------------------------------------
 
 load(file = "quick_reload.RData")
+library(nlme)
 
 # Remove all values below 350 nm
 # This is to remove any values less than 1 to avoid Inf/NaN errors during 
@@ -6289,13 +6273,106 @@ logLik_log_reflectance_varying_knots <- cbind(logLik_log_reflectance_varying_kno
 ```
 
 
-```{r}
+```
 
 rm(list = setdiff(ls(), c("AIC_reflectance_varying_knots", "AIC_log_reflectance_varying_knots", "BIC_log_reflectance_varying_knots", "BIC_reflectance_varying_knots", "logLik_log_reflectance_varying_knots", "logLik_reflectance_varying_knots")))
 
 save.image(file = "Varying_knots_dataframes.RData")
 
 ```
+
+# Table for Model Scores with Different Knot Count
+
+```{r}
+
+load(file = "Varying_knots_dataframes.RData")
+
+AIC_reflectance_varying_knots <- AIC_reflectance_varying_knots[,2:41]
+AIC_log_reflectance_varying_knots <- AIC_log_reflectance_varying_knots[,2:41]
+BIC_reflectance_varying_knots <- BIC_reflectance_varying_knots[,2:41]
+BIC_log_reflectance_varying_knots <- BIC_log_reflectance_varying_knots[,2:41]
+logLik_reflectance_varying_knots <- logLik_reflectance_varying_knots[,2:41]
+logLik_log_reflectance_varying_knots <- logLik_log_reflectance_varying_knots[,2:41]
+
+rownames(AIC_reflectance_varying_knots) <- names(tanData_filtered[-1])
+rownames(AIC_log_reflectance_varying_knots) <- names(tanData_filtered[-1])
+rownames(BIC_reflectance_varying_knots) <- names(tanData_filtered[-1])
+rownames(BIC_log_reflectance_varying_knots) <- names(tanData_filtered[-1])
+rownames(logLik_reflectance_varying_knots) <- names(tanData_filtered[-1])
+rownames(logLik_log_reflectance_varying_knots) <- names(tanData_filtered[-1])
+
+
+columnnames <- rep(NA, 40)
+for (i in 1:40){
+  name_vector <- c(paste(".Knots"))
+  number_vector <- paste(i)
+  name_vector <- paste(number_vector, name_vector, sep = '')
+  columnnames[i] <- name_vector
+}
+
+columnnames[1] <- "1.Knot"
+
+
+colnames(AIC_reflectance_varying_knots) <- columnnames
+colnames(AIC_log_reflectance_varying_knots) <- columnnames
+colnames(BIC_reflectance_varying_knots) <- columnnames
+colnames(BIC_log_reflectance_varying_knots) <- columnnames
+colnames(logLik_reflectance_varying_knots) <- columnnames
+colnames(logLik_log_reflectance_varying_knots) <- columnnames
+
+
+
+species_names_heatmap <- NA
+for (species_name in names(tanData_filtered[-1])){
+species_names <- rep(species_name, 40)
+species_names_heatmap <- rbind(species_names_heatmap, species_names)
+}
+
+species_names_heatmap <- species_names_heatmap[2:52,]
+species_names_heatmap <- t(species_names_heatmap)
+species_names_heatmap <- c(species_names_heatmap)
+
+
+knot_counts_heatmap <- NA
+for (i in 1:40){
+knot_counts <- as.character(i)
+knot_name <- paste("Knot.")
+knot_count <- paste(knot_name, knot_counts, sep = )
+knot_counts_heatmap <- rbind(knot_counts_heatmap, knot_counts)
+}
+knot_counts_heatmap <- c(knot_counts_heatmap)
+knot_counts_heatmap <- na.omit(knot_counts_heatmap)
+knot_counts_heatmap <- rep(knot_counts_heatmap, 51)
+
+length(species_names_heatmap) ==  length(knot_counts_heatmap)
+
+AIC_reflectance_varying_knots <- t(AIC_reflectance_varying_knots)
+data <- c(AIC_reflectance_varying_knots)
+
+length(species_names_heatmap) ==  length(data)
+length(knot_counts_heatmap) == length(data)
+
+
+knot_counts_heatmap <- rep(c(LETTERS, "Z1", "Z2","Z3","Z4","Z5","Z6","Z7","Z8","Z9","Z91","Z92","Z93","Z94", "Z95"),51)
+
+
+heatmap <- NA
+heatmap <- cbind(species_names_heatmap, knot_counts_heatmap)
+heatmap <- cbind(heatmap, data)
+heatmap <- data.frame(heatmap)
+heatmap$knot_counts_heatmap <- as.numeric(heatmap$knot_counts_heatmap)
+heatmap$data <- as.numeric(heatmap$data)
+ 
+# Heatmap 
+ggplot(data = heatmap, aes(y = species_names_heatmap, x = knot_counts_heatmap, fill= data)) + geom_tile(show.legend = TRUE)
+
+
+
+
+
+```
+
+
 
 
 ```{message = FALSE}
@@ -6314,5 +6391,189 @@ save.image(file = "Varying_knots_dataframes.RData")
                              df        AIC
 # x$reflectance_spline_fit     26  -580.3436
 # x$log_reflectance_spline_fit 26 -1823.3606
+
+```
+
+
+
+# Binning Reflectance data
+
+```{r, warning=FALSE, message=FALSE}
+
+#loading in Tanager dataset
+
+load("quick_reload.RData")
+library(nlme)
+
+ # Function to fit a natural spline and a cubic spline, returning the models, coefficients, and goodness-of-fit metrics
+  fit_splines <- function(wl, reflectance) {
+    # Fit cubic splines to base reflectance data with 10 degrees of freedom
+    cubic_spline_fit_reflectance <- gls(reflectance ~ bs(wl, df = 38), correlation = 
+                                          corAR1(form = ~ 1))
+    
+    # Fit cubic spline to log-transformed reflectance values with 10 degrees of freedom
+    cubic_spline_fit_log_reflectance <- gls(log(reflectance) ~ bs(wl, df = 38), correlation
+                                            = corAR1(form = ~ 1))
+    
+    basis_spline_data <- bs(wl, df = 38)
+    
+    # Extract coefficients from each set of fits
+    reflectance_coef <- round(coef(cubic_spline_fit_reflectance), 2)
+    log_reflectance_coef <- round(coef(cubic_spline_fit_log_reflectance), 2)
+    
+    # Calculate goodness-of-fit metrics (AIC, BIC, and logLik values)
+    reflectance_AIC <- summary(cubic_spline_fit_reflectance)$AIC
+    log_reflectance_AIC <- summary(cubic_spline_fit_log_reflectance)$AIC
+    
+    reflectance_BIC <- summary(cubic_spline_fit_reflectance)$BIC
+    log_reflectance_BIC <- summary(cubic_spline_fit_log_reflectance)$BIC
+        
+    reflectance_logLik <- summary(cubic_spline_fit_reflectance)$logLik
+    log_reflectance_logLik <- summary(cubic_spline_fit_log_reflectance)$logLik
+
+    # Extracts rspec and rgb values from the reflectance curves
+    reflectance_rspec <- as.rspec(data.frame(wl = wl, reflectance = 
+                         predict(cubic_spline_fit_reflectance)), lim = c(300, 700))
+    reflectance_rgb <- spec2rgb(reflectance_rspec)
+  
+    log_reflectance_rspec <- as.rspec(data.frame(wl = wl, reflectance = 
+                          predict(cubic_spline_fit_reflectance)), lim = c(300, 700))
+    log_reflectance_rgb <- spec2rgb(log_reflectance_rspec)
+    
+    return(list(
+      reflectance_spline_fit = cubic_spline_fit_reflectance,
+      log_reflectance_spline_fit = cubic_spline_fit_log_reflectance,
+      reflectance_coef = reflectance_coef,
+      log_reflectance_coef = log_reflectance_coef,
+      reflectance_AIC = reflectance_AIC,
+      log_reflectance_AIC = log_reflectance_AIC,
+      reflectance_BIC = reflectance_BIC,
+      log_reflectance_BIC = log_reflectance_BIC,
+      reflectance_logLik = reflectance_logLik,
+      log_reflectance_logLik = log_reflectance_logLik,
+      reflectance_rgb = reflectance_rgb,
+      log_reflectance_rgb = log_reflectance_rgb,
+      degree = attributes(basis_spline_data)$degree,
+      internal_knots = attributes(basis_spline_data)$knots,
+      boundary_knots = attributes(basis_spline_data)$Boundary.knots
+    ))
+  }
+  
+  # Remove all values below 350 nm
+  # This is to remove any values less than 1 to avoid Inf/NaN errors during 
+  # log-transformation
+  # Also, this only remove UV values from the dataset
+  tanData_filtered <- tanData_filtered[-c(1:51),]
+
+  # Apply the spline fitting function to each species
+  spline_results <- lapply(tanData_filtered[-1], function(reflectance) {
+    fit_splines(tanData_filtered$wl, reflectance)
+  })
+
+
+
+  
+# Summary stats at each wl
+
+tanData_filtered_wowl <- tanData_filtered[-1]
+tanData_filtered_wowl <- t(tanData_filtered_wowl)
+
+wl_bins <- seq(1, 350, 10)
+
+wl_mean <- rep(NA, 35)
+wl_var <- rep(NA, 35)
+wl_sd <- rep(NA, 35)
+wl_data <- NULL
+wl_dataframe <- NA
+
+
+for (i in 1:35){
+  wl_range <- seq(wl_bins[i],(wl_bins[i])+9, 1)
+  print(wl_range)
+
+  wl_mean[i] <- mean(tanData_filtered_wowl[,wl_range])
+  wl_var[i] <- var(tanData_filtered_wowl[,wl_range])
+  wl_sd[i] <- sd(tanData_filtered_wowl[, wl_range])
+
+  wl_data <- c(tanData_filtered_wowl[,wl_range])
+
+  wl_dataframe <- rbind(wl_dataframe, wl_data)
+
+  # Verifying that for loop worked
+  test_mean <- (c(tanData_filtered_wowl[,wl_range]))
+  print(mean(test_mean) == wl_mean[i])
+}
+
+wl_summary_stats <- cbind(wl_mean, wl_var)
+wl_summary_stats <- cbind(wl_summary_stats, wl_sd)
+
+wl_ranges <- c("351-360", "361-370","371-380","381-390","391-400","401-410","411-420","421-430","431-440","441-450","451-460","461-470","471-480","481-490","491-400","501-510","511-520","521-530","531-540", "541-550","551-560","561-570","571-580","581-590","591-500","601-610","611-620","621-630","631-640","641-650","651-660","661-670","671-680","681-690","691-700")
+rownames(wl_summary_stats) <- wl_ranges
+
+wl_dataframe <- wl_dataframe[2:36,]
+rownames(wl_dataframe) <- wl_ranges
+wl_dataframe <- t(wl_dataframe)
+
+
+
+
+colors_for_plots <- c(rep("violet", 10), rep("blue",5), rep("green", 7), rep("yellow", 2), rep("orange", 3), rep("red", 8))
+boxplot(x = wl_dataframe[,1:35], col = colors_for_plots)
+
+barplot(height = wl_mean, names.arg = wl_ranges, cex.names = 0.65, col = colors_for_plots)
+barplot(height = wl_sd, names.arg = wl_ranges, cex.names = 0.65, col = colors_for_plots)
+barplot(height = wl_var, names.arg = wl_ranges, cex.names = 0.65, col = colors_for_plots)
+
+
+
+spline_coef_data <- NA
+
+for (species_name in names(spline_results)){
+  
+  name_vector <- as.character(species_name)
+  
+  spline_coefficients <- spline_results[[name_vector]]
+  
+  spline_coefficients <- spline_coefficients$reflectance_coef
+  
+  spline_coef_data <- rbind(spline_coef_data, spline_coefficients)
+  
+  
+}
+
+
+spline_coef_data <- spline_coef_data[-1,]
+spline_coef_data <- data.frame(spline_coef_data)
+rownames(spline_coef_data) <- names(spline_results)
+species <- as.character(names(spline_results))
+spline_coef_data <- cbind(species, spline_coef_data)
+
+coefficient_names <- c("Species", "Intercept", "Coefficient.1","Coefficient.2","Coefficient.3","Coefficient.4","Coefficient.5","Coefficient.6","Coefficient.7","Coefficient.8","Coefficient.9","Coefficient.10","Coefficient.11","Coefficient.12","Coefficient.13","Coefficient.14","Coefficient.15","Coefficient.16","Coefficient.17","Coefficient.18","Coefficient.19","Coefficient.20","Coefficient.21","Coefficient.22","Coefficient.23","Coefficient.24","Coefficient.25","Coefficient.26","Coefficient.27","Coefficient.28","Coefficient.29","Coefficient.30","Coefficient.31","Coefficient.32","Coefficient.33","Coefficient.34","Coefficient.35","Coefficient.36","Coefficient.37","Coefficient.38")
+
+colnames(spline_coef_data) <- coefficient_names
+
+
+
+write_tsv(spline_coef_data, file = "spline_coefficients_BEAST.txt")
+
+```
+
+
+
+
+
+
+
+```{r}
+# Can be taken from any species as knot placements are identical
+internal_knots_placement <- spline_results[["TanCyo"]]$internal_knots
+print(internal_knots_placement)
+length(internal_knots_placement)
+
+for (i in 1:35){
+  print(internal_knots_placement[i+1] - internal_knots_placement[i])
+  
+}
+
 
 ```
