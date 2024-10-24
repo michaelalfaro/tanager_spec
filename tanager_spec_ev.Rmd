@@ -6595,6 +6595,44 @@ barplot(height = diffusion_rate_data$mean, names.arg = rownames(diffusion_rate_d
 ```
 
 
+# Reconstructing splines from scratch
+
+```{r}
+
+
+library(splines2)
+
+
+# gls spline fit example
+
+TanCyo <- spline_results[["TanCyo"]]
+gls_spline_reconstruction <- predict(TanCyo$reflectance_spline_fit)
+
+# Spline reconstruction using only spline coefficients and our basis
+
+bspline_matrix <- bSpline(tanData_filtered$wl, df = 38)
+
+# Verifying that these two functions produce identical matrices (output should be TRUE)
+identical(data.frame(bs(tanData_filtered$wl, df = 38)), data.frame(bSpline(tanData_filtered$wl, df = 38)))
+
+TanCyo_spline_coef <- TanCyo$reflectance_coef
+
+# Must make coefficients from 2:39 as bSpline function does not create an intercept coefficient
+coef_spline_reconstruction <- predict(bspline_matrix, coef = as.numeric(c(TanCyo_spline_coef[2:39])))
+
+coef_spline_reconstruction <- cbind(coef_spline_reconstruction, seq(351,700,1))
+coef_spline_reconstruction <- data.frame(coef_spline_reconstruction)
+
+plot(y = coef_spline_reconstruction$coef_spline_reconstruction, x = coef_spline_reconstruction$V2, main = "Reconstructed Spline", xlab = "Wavelength (nm)", ylab = "Index?")
+
+
+
+
+```
+
+
+
+
 
 
 
