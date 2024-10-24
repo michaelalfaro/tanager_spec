@@ -3026,7 +3026,7 @@ ggplot(data = model_scoring, aes(x = Reflectance_logLik, y = Log_Reflectance_log
 
 # Ideal Knot Number Based on Model Score
 
-```{message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 
 # Model Scores slightly punished for adding more knots, but log-transforming data has better model
 # scores for every number of knots
@@ -6558,7 +6558,41 @@ write_tsv(spline_coef_data, file = "spline_coefficients_BEAST.txt")
 
 ```
 
+```{r}
+# Spline Coefficient Diffusion Rates
 
+
+knot_counts_heatmap <- NA
+for (i in 1:40){
+knot_counts <- as.character(i)
+knot_name <- paste("Knot.")
+knot_count <- paste(knot_name, knot_counts, sep = )
+knot_counts_heatmap <- rbind(knot_counts_heatmap, knot_counts)
+}
+
+
+rownames_vector <- c(diffusion_rate_data[,1])
+rownames(diffusion_rate_data) <- rownames_vector
+
+columnnames_vector <- c(diffusion_rate_data[1,])
+colnames(diffusion_rate_data) <- columnnames_vector
+
+
+diffusion_rate_data <- diffusion_rate_data[-1,-1]
+
+
+diffusion_rate_data <- diffusion_rate_data[,c(1,38,36,34,32,30,28,26,24,3,15,13,19,17,8,6,11,10,22,21,23,35,33,39,37,27,25,31,29,2,5,4,16,14,20,18,9,7,12)]
+
+diffusion_rate_data <- t(diffusion_rate_data)
+diffusion_rate_data <- data.frame(diffusion_rate_data)
+
+diffusion_rate_data$mean <- as.numeric(diffusion_rate_data$mean)
+
+rownames(diffusion_rate_data) <- c("Intercept", 1:38)
+barplot(height = diffusion_rate_data$mean, names.arg = rownames(diffusion_rate_data), main)
+
+
+```
 
 
 
