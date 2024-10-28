@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-#  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+#  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -80,10 +80,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -162,10 +162,7 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
     # but for now, I will keep the default as fixed = FALSE.
     cubic_spline_fit_reflectance <- gls(reflectance ~ bs(wl, df = 38), correlation = 
                                           corAR1(form = ~ 1))
-    
-    # Fit cubic spline to log-transformed reflectance values with 38 degrees of freedom (35 knots)
-    cubic_spline_fit_log_reflectance <- gls(log(reflectance) ~ bs(wl, df = 38), correlation
-                                            = corAR1(form = ~ 1))
+
     
     # bs function contains data that is not added to the gls model
     # This includes degree of the functions used, the placement of the
@@ -178,41 +175,27 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
     
     # Extract coefficients from each set of fits
     reflectance_coef <- round(coef(cubic_spline_fit_reflectance), 2)
-    log_reflectance_coef <- round(coef(cubic_spline_fit_log_reflectance), 2)
     
     # Calculate goodness-of-fit metrics (AIC, BIC, and logLik values)
     reflectance_AIC <- summary(cubic_spline_fit_reflectance)$AIC
-    log_reflectance_AIC <- summary(cubic_spline_fit_log_reflectance)$AIC
-    
+
     reflectance_BIC <- summary(cubic_spline_fit_reflectance)$BIC
-    log_reflectance_BIC <- summary(cubic_spline_fit_log_reflectance)$BIC
-        
+
     reflectance_logLik <- summary(cubic_spline_fit_reflectance)$logLik
-    log_reflectance_logLik <- summary(cubic_spline_fit_log_reflectance)$logLik
 
     # Extracts rspec and rgb values from the reflectance curves
     reflectance_rspec <- as.rspec(data.frame(wl = wl, reflectance = 
                          predict(cubic_spline_fit_reflectance)), lim = c(300, 700))
     reflectance_rgb <- spec2rgb(reflectance_rspec)
-  
-    log_reflectance_rspec <- as.rspec(data.frame(wl = wl, reflectance = 
-                          predict(cubic_spline_fit_reflectance)), lim = c(300, 700))
-    log_reflectance_rgb <- spec2rgb(log_reflectance_rspec)
     
     # Generate a list containing all of our pulled data
     return(list(
       reflectance_spline_fit = cubic_spline_fit_reflectance,
-      log_reflectance_spline_fit = cubic_spline_fit_log_reflectance,
       reflectance_coef = reflectance_coef,
-      log_reflectance_coef = log_reflectance_coef,
       reflectance_AIC = reflectance_AIC,
-      log_reflectance_AIC = log_reflectance_AIC,
       reflectance_BIC = reflectance_BIC,
-      log_reflectance_BIC = log_reflectance_BIC,
       reflectance_logLik = reflectance_logLik,
-      log_reflectance_logLik = log_reflectance_logLik,
       reflectance_rgb = reflectance_rgb,
-      log_reflectance_rgb = log_reflectance_rgb,
       degree = attributes(basis_spline_data)$degree,
       internal_knots = attributes(basis_spline_data)$knots,
       boundary_knots = attributes(basis_spline_data)$Boundary.knots
@@ -223,7 +206,7 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
   fit_splines_log <- function(wl, reflectance) {
 
     # Fit cubic spline to log-transformed reflectance values with 38 degrees of freedom (35 knots)
-    cubic_spline_fit_log_reflectance <- gls(log(reflectance) ~ bs(wl, df = 38), correlation
+    cubic_spline_fit_log_reflectance <- gls((reflectance) ~ bs(wl, df = 38), correlation
                                             = corAR1(form = ~ 1))
     
     # bs function contains data that is not added to the gls model
@@ -243,7 +226,7 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 
     # Extracts rspec and rgb values from the reflectance curves
     log_reflectance_rspec <- as.rspec(data.frame(wl = wl, reflectance = 
-                          predict(cubic_spline_fit_reflectance)), lim = c(300, 700))
+                          predict(cubic_spline_fit_log_reflectance)), lim = c(300, 700))
     log_reflectance_rgb <- spec2rgb(log_reflectance_rspec)
     
     # Generate a list containing all of our pulled data
@@ -284,8 +267,10 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 }
 
   
-  
+  # This log-transforms every value in our dataframe
   tanlogData_filtered <- log(tanlogData_filtered)
+  # This converts our wavelength data back to standard values
+  # (300-700 nm)
   tanlogData_filtered$wl <- exp(tanlogData_filtered$wl)
 
   # Apply the spline fitting function to each species
@@ -293,4 +278,10 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
     fit_splines(tanData_filtered$wl, reflectance)
   })
 
+# Applies our spline fitting function to our log-transformed reflectance data for
+# each species
+  spline_results_log <- lapply(tanData_filtered[-1], function(reflectance) {
+    fit_splines_log(tanlogData_filtered$wl, reflectance)
+  })
+  
 ```
