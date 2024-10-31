@@ -311,7 +311,7 @@ lines(wl, predict(result$reflectance_spline_fit), col = rgb_colors[[species_name
 mtext(paste("AIC:", round(result$reflectance_AIC, 3), "BIC:", round(result$reflectance_BIC, 2), "logLik:", round(result$reflectance_logLik)),
       side = 3, line = 0.5, cex = 0.8, col = "blue")
 
-# Plots Cubic Splines for log Reflectance data wit model scores
+# Plots Cubic Splines for log Reflectance data with model scores
 plot(wl, log_reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
      col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
      main = paste("Cubic Spline (log Refl.) -", species_name),
@@ -371,6 +371,12 @@ spline_table <- data.frame(
 
 Internal_Knots = c(sapply(spline_results, function(x) c(x$internal_knots)))
 Internal_Knots <- t(Internal_Knots)
+
+Boundary_Knots = c(sapply(spline_results, function(x) c(x$boundary_knots)))
+Boundary_Knots <- t(Boundary_Knots)
+
+spline_table <- cbind(spline_table, Internal_Knots)
+spline_table <- cbind(spline_table, Boundary_Knots)
 
 spline_table$Internal_Knots <- NA
 
