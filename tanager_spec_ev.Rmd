@@ -4,7 +4,7 @@ output: html_document
 date: "2024-08-13"
 ---
 
-
+### Libraries
 ```{r, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 library(tidyverse)
@@ -280,8 +280,129 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 
 # Applies our spline fitting function to our log-transformed reflectance data for
 # each species
-  spline_results_log <- lapply(tanData_filtered[-1], function(reflectance) {
+  spline_results_log <- lapply(tanlogData_filtered[-1], function(reflectance) {
     fit_splines_log(tanlogData_filtered$wl, reflectance)
   })
   
+```
+
+
+
+
+# Step 4: Species plots of splines on refl. and log refl. data
+
+```{r}
+
+# Function that plots the splines from each dataset for all species
+plot_splines_with_metrics <- function(species_name, wl, reflectance, log_reflectance, spline_results, spline_results_log, rgb_colors) {
+  
+  # Extracts a single species spline results from each dataset list
+  result <- spline_results[[species_name]]
+  log_result <- spline_results_log[[species_name]]
+  
+  par(mfrow = c(1, 2))
+  
+  # Plots Cubic Splines for Reflectance Data with model scores
+plot(wl, reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Cubic Splines (Refl.) -", species_name),
+     xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+lines(wl, predict(result$reflectance_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
+mtext(paste("AIC:", round(result$reflectance_AIC, 3), "BIC:", round(result$reflectance_BIC, 2), "logLik:", round(result$reflectance_logLik)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+
+# Plots Cubic Splines for log Reflectance data wit model scores
+plot(wl, log_reflectance, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Cubic Spline (log Refl.) -", species_name),
+     xlab = "Wavelength (nm)", ylab = "log Reflectance (%)")
+lines(wl, predict(log_result$log_reflectance_spline_fit), col = rgb_colors[[species_name]], lwd = 2)
+mtext(paste("AIC:", round(log_result$log_reflectance_AIC, 3), "BIC:", round(log_result$log_reflectance_BIC, 2), "logLik:", round(log_result$log_reflectance_logLik)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+}
+
+# Takes above function and uses a for loop to get every species' spline results plotted
+for (species_name in names(spline_results)) {
+  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], tanlogData_filtered[[species_name]], spline_results, spline_results_log, rgb_colors)
+}
+
+# Takes the above plots and puts them onto a pdf
+pdf("cubic_splines_refl&logrefl_with_metrics.pdf", width = 12, height = 8)
+for (species_name in names(spline_results)) {
+  plot_splines_with_metrics(species_name, tanData_filtered$wl, tanData_filtered[[species_name]], tanlogData_filtered[[species_name]], spline_results, spline_results_log, rgb_colors)
+}
+dev.off()
+
+
+```
+
+
+## Step 5 Print a Summary Table of Spline Fits
+
+```{r, message=FALSE, warning=FALSE}
+
+# Create the spline summary table with coefficients, degree,
+# knot placements, rgb values, and goodness-of-fit metrics.
+# Dataframe just extracts data from the species list data from 
+# each of the respective spline results
+spline_table <- data.frame(
+  
+  Species = names(spline_results),
+
+  Reflectance_Spline_Coefficients = sapply(spline_results, function(x) paste(x$reflectance_coef, collapse = ", ")),
+  Log_Reflectance_Spline_Coefficients = sapply(spline_results_log, function(x) paste(x$log_reflectance_coef, collapse = ", ")),
+  
+  Reflectance_AIC = sapply(spline_results, function(x) round(x$reflectance_AIC, 2)),
+  Log_Reflectance_AIC = sapply(spline_results_log, function(x) round(x$log_reflectance_AIC, 2)),  
+
+  Reflectance_BIC = sapply(spline_results, function(x) round(x$reflectance_BIC, 2)),
+  Log_Reflectance_BIC = sapply(spline_results_log, function(x) round(x$log_reflectance_BIC, 2)),
+
+   Reflectance_logLik = sapply(spline_results, function(x) round(x$reflectance_logLik, 2)),
+  Log_Reflectance_logLik = sapply(spline_results_log, function(x) round(x$log_reflectance_logLik, 2)),
+
+  Degree_Reflectance = sapply(spline_results, function(x) c(x$degree)),
+  Degree_Log_Reflectance = sapply(spline_results_log, function(x) c(x$degree)),
+  
+  RGB_Color = sapply(spline_results, function(x) c(x$reflectance_rgb))
+  )
+
+
+
+Internal_Knots = c(sapply(spline_results, function(x) c(x$internal_knots)))
+Internal_Knots <- t(Internal_Knots)
+
+spline_table$Internal_Knots <- NA
+
+for (i in 1:51){
+  x <- c(spline_table[i,13:47])
+  x <- as.numeric(x)
+  spline_table[i,50] <- toString(x)
+}
+
+spline_table$Boundary_Knots <- NA
+for (i in 1:51){
+  x <- c(spline_table[i, 48:49])
+  x <- as.numeric(x)
+  spline_table[i,51] <- toString(x)
+}
+
+spline_table <- spline_table[,-c(13:49)]
+
+
+# Remove row names
+rownames(spline_table) <- NULL
+
+# Display the table in the document without row names
+kable(spline_table, caption = "Summary of Spline Fits for Each Species (Including Goodness-of-Fit)") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+# Save the table as a CSV
+write.csv(spline_table, "spline_summary_table.csv", row.names = FALSE)
+
+# Fixing the PDF export by increasing the margins and adjusting the layout
+pdf("spline_summary_table.pdf", width = 11, height = 8.5)
+gridExtra::grid.table(spline_table, rows = NULL)
+dev.off()
+
 ```
