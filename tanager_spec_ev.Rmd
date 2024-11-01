@@ -368,33 +368,107 @@ spline_table <- data.frame(
   )
 
 
+# Adding Internal Knots to the spline_table but I perform this outside of 
+# the dataframe function as there are some complications with inserting those
+# values through the methodology we see below. This method, although an additional
+# step, circumvents the necessity of adding each indiviual knot (for each species)
+# as an individual column in the dataframe
 
-Internal_Knots = c(sapply(spline_results, function(x) c(x$internal_knots)))
+# Extracts the internal and boundary knot placements for each species 
+# as a matrix for the splines using reflectance data
+Internal_Knots = sapply(spline_results, function(x) round(c(x$internal_knots), 3))
+Internal_Knots_log = sapply(spline_results_log, function(x) round(c(x$internal_knots), 3))
+
+Boundary_Knots = sapply(spline_results, function(x) round(c(x$boundary_knots),3))
+Boundary_Knots_log = sapply(spline_results_log, function(x) round(c(x$boundary_knots), 3))
+
+# We must transpose the matrix to make the species names align along the rows
+# to easily bind this matrix to the spline_table
 Internal_Knots <- t(Internal_Knots)
+Internal_Knots_log <- t(Internal_Knots_log)
 
-Boundary_Knots = c(sapply(spline_results, function(x) c(x$boundary_knots)))
 Boundary_Knots <- t(Boundary_Knots)
+Boundary_Knots_log <- t(Boundary_Knots_log)
 
+# Attaching each matrix to each our spline_table
 spline_table <- cbind(spline_table, Internal_Knots)
+spline_table <- cbind(spline_table, Internal_Knots_log)
 spline_table <- cbind(spline_table, Boundary_Knots)
+spline_table <- cbind(spline_table, Boundary_Knots_log)
 
+
+# 4 for loops to add each set of knot data into a singular column
+# in our spline_table dataframe. Check knot vector min and max values
+# to ensure your for loops do not take values from a different knot 
+# dataset.
+
+# Adds our new column
 spline_table$Internal_Knots <- NA
 
+# For loop to turn knots into a long character string
+# and inputs it into our newly generated column for
+# each species
 for (i in 1:51){
   x <- c(spline_table[i,13:47])
   x <- as.numeric(x)
-  spline_table[i,50] <- toString(x)
+  spline_table[i,87] <- toString(x)
+}
+
+
+spline_table$Internal_Knots_log <- NA
+for (i in 1:51){
+  x <- c(spline_table[i,48:82])
+  x <- as.numeric(x)
+  spline_table[i,88] <- toString(x)
 }
 
 spline_table$Boundary_Knots <- NA
 for (i in 1:51){
-  x <- c(spline_table[i, 48:49])
+  x <- c(spline_table[i, 83:84])
   x <- as.numeric(x)
-  spline_table[i,51] <- toString(x)
+  spline_table[i,89] <- toString(x)
 }
 
-spline_table <- spline_table[,-c(13:49)]
+spline_table$Boundary_Knots_log <- NA
+for (i in 1:51){
+  x <- c(spline_table[i, 85:86])
+  x <- as.numeric(x)
+  spline_table[i,90] <- toString(x)
+}
 
+# Removes all extraneous knot columns
+spline_table <- spline_table[,-c(13:86)]
+
+# Verifying Knot Placements
+
+# Only a single value should be printed if the internal knots are
+# placed at the same points
+unique(spline_table$Internal_Knots)
+unique(spline_table$Internal_Knots_log)
+
+# Making sure internal knot placements are identical between 
+# reflectance and log reflectance data
+unique(spline_table$Internal_Knots) == unique(spline_table$Internal_Knots_log)
+
+# Only a single value should be printed if the boundary knots are
+# placed at the same points
+unique(spline_table$Boundary_Knots)
+unique(spline_table$Boundary_Knots_log)
+
+# Making sure boundary knot placements are identical between 
+# reflectance and log reflectance data
+unique(spline_table$Boundary_Knots) == unique(spline_table$Boundary_Knots_log)
+
+# Verifying Degree of our Cubic Splines
+
+# Only a single value should be printed if the is uniform
+# This value should be 3, given we are using cubic splines
+unique(spline_table$Degree_Reflectance)
+unique(spline_table$Degree_Log_Reflectance)
+
+# Making sure the degree of the splines are identical between 
+# reflectance and log reflectance data
+unique(spline_table$Degree_Reflectance) == unique(spline_table$Degree_Log_Reflectance)
 
 # Remove row names
 rownames(spline_table) <- NULL
@@ -410,5 +484,23 @@ write.csv(spline_table, "spline_summary_table.csv", row.names = FALSE)
 pdf("spline_summary_table.pdf", width = 11, height = 8.5)
 gridExtra::grid.table(spline_table, rows = NULL)
 dev.off()
+
+```
+
+
+### Step 6: 
+
+```{r}
+
+
+
+
+
+
+
+
+
+
+
 
 ```
