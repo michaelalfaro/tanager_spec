@@ -25,17 +25,17 @@ library(splines2)
 ```
 
 
-### initialization
+### Loading Reflectance Data
 
 ```{r}
 
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-#  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -69,6 +69,7 @@ suppressMessages({
   head(crown_data)
 })
 
+
 ```
 
 
@@ -80,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -734,8 +735,6 @@ for (i in 1:40){
     wl_sd[i] <- sd(tanData_filtered_wowl[,sequence])
     
     wl_data <- c(tanData_filtered_wowl[,sequence])
-  
-    wl_dataframe <- rbind(wl_dataframe, wl_data)
     }
   print(length(wl_data))
   # Verifying that for loop worked
@@ -755,4 +754,9 @@ wl_dataframe <- t(wl_dataframe)
 
 head(wl_dataframe)
 
+
+
+?boxplot
+
+boxplot(x = wl_dataframe[, 1:39])
 ```
