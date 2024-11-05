@@ -488,19 +488,271 @@ dev.off()
 ```
 
 
-### Step 6: 
+### Step 6: Model scores table for reflectance and log reflectance splines
+
+Here, we want to create a separate dataframe in order to easily compare the model scores for the spline fits to each set of data (reflectance versus log-transformed reflectance values). This dataframe will contain the AIC, BIC, and logLik scores that we obtained from our gls function and then we identify which model has the "better" score, and therefore which dataset we should use for our parameter estimation and ancestral state reconstruction.
 
 ```{r}
 
 
+# Creates a separate dataframe only containing the species names and the model scores produced from our gls
+spline_model_scores <- spline_table[,c(1,4:9)]
+
+# Adds a column to the end of the data frame capturing the minimum AIC score between the two fits (lowest AIC score is the model you should select)
+spline_model_scores <- spline_model_scores %>% 
+  group_by(Species) %>%
+  mutate(AIC_Preferred_Model_Score = min(c(Reflectance_AIC, Log_Reflectance_AIC)))
+
+# Here we create a for loop system to identify and name which dataset used is preferred without having to manually check for each species.
+
+# Placeholder vector to store which dataset is preferred to then be bound to the end of the model scoring dataframe
+preferred_model_name <- rep(NA, length(spline_model_scores$Species))
+
+# for loop to determine which value (for each species) from our newly generated column matches to which dataset and store the output into the placeholder vector 
+for (i in 1:length(spline_model_scores$Species)){
+  if (spline_model_scores[i,8] == spline_model_scores[i,2]){
+    preferred_model_name[i] <- "Reflectance"
+  }
+  else if (spline_model_scores[i,8] == spline_model_scores[i,3]){
+    preferred_model_name[i] <- "Log Reflectance"
+  }
+  else if (spline_model_scores[i,8] == spline_model_scores[i,2] & spline_model_scores[i,3] == spline_model_scores[i,8]){
+    preferred_model_name[i] <- "Either"
+  }
+    }
+
+# Attaches the placeholder vector to the model scores dataframe
+spline_model_scores <- cbind(spline_model_scores, preferred_model_name)
+
+# Takes the column names of the dataframe and stores them in a vector
+column_names <- colnames(spline_model_scores)
+
+# Adds a new value to name our newly attached column
+column_names[9] <- "AIC_Preferred_Model_Name"
+
+# Applies our column names vector as the names for our dataframe
+colnames(spline_model_scores) <- column_names
 
 
 
+# We recreate an identical process for BIC scores
+
+spline_model_scores <- spline_model_scores %>% 
+  group_by(Species) %>%
+  mutate(BIC_Preferred_Model_Score = min(c(Reflectance_BIC, Log_Reflectance_BIC)))
+
+preferred_model_name <- rep(NA, length(spline_model_scores$Species))
+for (i in 1:length(spline_model_scores$Species)){
+  if (spline_model_scores[i,10] == spline_model_scores[i,4]){
+    preferred_model_name[i] <- "Reflectance"
+  }
+  else if (spline_model_scores[i,10] == spline_model_scores[i,5]){
+    preferred_model_name[i] <- "Log Reflectance"
+  }
+  else if (spline_model_scores[i,10] == spline_model_scores[i,4] & spline_model_scores[i,5] == spline_model_scores[i,10]){
+    preferred_model_name[i] <- "Either"
+  }
+    }
+
+spline_model_scores <- cbind(spline_model_scores, preferred_model_name)
+column_names <- colnames(spline_model_scores)
+column_names[11] <- "BIC_Preferred_Model_Name"
+colnames(spline_model_scores) <- column_names
 
 
 
+# We create an almost identical process for logLik scores. The only change is that instead of looking for the minimum logLik score, we are looking for the maximum logLik score.
+
+spline_model_scores <- spline_model_scores %>% 
+  group_by(Species) %>%
+  mutate(logLik_Preferred_Model_Score = max(c(Reflectance_logLik, Log_Reflectance_logLik)))
+
+preferred_model_name <- rep(NA, length(spline_model_scores$Species))
+for (i in 1:length(spline_model_scores$Species)){
+  if (spline_model_scores[i,12] == spline_model_scores[i,6]){
+    preferred_model_name[i] <- "Reflectance"
+  }
+  else if (spline_model_scores[i,12] == spline_model_scores[i,7]){
+    preferred_model_name[i] <- "Log Reflectance"
+  }
+  else if (spline_model_scores[i,12] == spline_model_scores[i,6] & spline_model_scores[i,7] == spline_model_scores[i,12]){
+    preferred_model_name[i] <- "Either"
+  }
+    }
+
+spline_model_scores <- cbind(spline_model_scores, preferred_model_name)
+column_names <- colnames(spline_model_scores)
+column_names[13] <- "logLik_Preferred_Model_Name"
+colnames(spline_model_scores) <- column_names
+
+spline_model_scores$logLik_Preferred_Model_Name[spline_model_scores$logLik_Preferred_Model_Name == 0] <- "Reflectance"
+spline_model_scores$logLik_Preferred_Model_Name[spline_model_scores$logLik_Preferred_Model_Name == 1] <- "Log Reflectance"
+spline_model_scores$logLik_Preferred_Model_Name[spline_model_scores$logLik_Preferred_Model_Name == 2] <- "Either"
+
+# Reorders the dataframe to put all of the model scores together
+spline_model_scores <- spline_model_scores[,c(1,2,3,8,9,4,5,10,11,6,7,12,13)]
+
+# Verifies if the dataframe has been completed correctly
+head(spline_model_scores)
+```
+
+# Step 7: Plotting model scores between datasets
+
+Here, we want to plot the model scores from each of the datasets to each other. If our spline fits are identical, our model scores should fit along the line $y=x$. For an inconclusive determination, we would see an even split around the line if there is not a strong preference present. Otherwise, we should expect to a vast majority of data points lying on one side of the line over the other.
+
+```{r}
+
+
+name_vector <- NULL
+position <- NULL
+position_vector <- NULL
+
+for (species_name in names(spline_results)){
+  name_vector <- as.character(species_name)
+  position <- (which(spline_model_scores$Species == name_vector))
+  position_vector <- rbind(position_vector, position)
+}
+
+tanager_subset_colors <- spline_table[c(position_vector), "RGB_Color"]
+names(tanager_subset_colors) <- spline_table$Species
+
+title_for_legend <- "Species"
+
+
+# AIC scores
+
+(ggplot(data = spline_model_scores, aes(x = Reflectance_AIC, y = Log_Reflectance_AIC))
++ geom_point(aes(color = names(tanager_subset_colors)))
++ theme(legend.key.size = unit(0.5, "cm"))
++ geom_hline(yintercept = 0)
++ geom_vline(xintercept = 0)
++ geom_abline(intercept = 0, slope = 1)
++ xlab("Reflectance AIC Score")
++ ylab("Log Reflectance AIC Score")
++ ggtitle("AIC Scores", subtitle = "Log Reflectance vs. Reflectance Spline Fits")
++ scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
+)
+
+
+(ggplot(data = spline_model_scores, aes(x = Reflectance_AIC, y = Log_Reflectance_AIC))
++ geom_point(aes(color = names(tanager_subset_colors)))
++ theme(legend.key.size = unit(0.5, "cm"))
++ xlab("Reflectance AIC Score")
++ ylab("Log Reflectance AIC Score")
++ ggtitle("AIC Scores", subtitle = "Log Reflectance vs. Reflectance Spline Fits")
++ scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
+)
 
 
 
+# BIC scores
+
+(ggplot(data = spline_model_scores, aes(x = Reflectance_BIC, y = Log_Reflectance_BIC))
++ geom_point(aes(color = names(tanager_subset_colors))) 
++ theme(legend.key.size = unit(0.5, "cm"))
++ geom_hline(yintercept = 0)
++ geom_vline(xintercept = 0)
++ geom_abline(intercept = 0, slope = 1)
++ xlab("Reflectance BIC Score")
++ ylab("Log Reflectance BIC Score")
++ ggtitle("BIC Scores", subtitle = "Log Reflectance vs. Reflectance Spline Fits")
++ scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
+)
+
+(ggplot(data = spline_model_scores, aes(x = Reflectance_BIC, y = Log_Reflectance_BIC))
++ geom_point(aes(color = names(tanager_subset_colors)))
++ theme(legend.key.size = unit(0.5, "cm"))
++ xlab("Reflectance BIC Score")
++ ylab("Log Reflectance BIC Score")
++ ggtitle("BIC Scores", subtitle = "Log Reflectance vs. Reflectance Spline Fits")
++ scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
+)
+
+
+# logLik scores
+
+(ggplot(data = spline_model_scores, aes(x = Reflectance_logLik, y = Log_Reflectance_logLik)) + geom_point(aes(color = names(tanager_subset_colors)))
++ theme(legend.key.size = unit(0.5, "cm"))
++ xlab("Reflectance logLik Score") 
++ ylab("Log Reflectance logLik Score")
++ ggtitle("logLik Scores", subtitle = "Log Reflectance vs. Reflectance Spline Fits")
++ scale_color_manual(title_for_legend, values = as.character(tanager_subset_colors))
+)
+
+(ggplot(data = spline_model_scores, aes(x = Reflectance_logLik, y = Log_Reflectance_logLik)) + geom_point(aes(color = names(tanager_subset_colors)))
++ theme(legend.key.size = unit(0.5, "cm"))
++ geom_hline(yintercept = 0)
++ geom_vline(xintercept = 0)
++ geom_abline(slope = 1, intercept = 0)
++ xlab("Reflectance logLik Score")
++ ylab("Log Reflectance logLik Score")
++ ggtitle("logLik Scores", subtitle = "Log Reflectance vs. Reflectance Spline Fits")
++ scale_color_manual(title_for_legend, values = as.character(tanager_subset_colors))
+)
+
+
+
+```
+
+
+#Step 8: Spline Coefficient Extraction for BEAST
+
+```{r, warning=FALSE}
+
+tanData_filtered_wowl <- data.frame(tanData_filtered[-1])
+tanData_filtered_wowl <- t(tanData_filtered_wowl)
+
+wl_bins <- seq(1, 400, 10)
+wavelengths <- 300:700
+
+wl_mean <- rep(NA, 40)
+wl_var <- rep(NA, 40)
+wl_sd <- rep(NA, 40)
+wl_data <- NULL
+wl_dataframe <- NA
+
+
+for (i in 1:40){
+  sequence <- seq(wl_bins[i],(wl_bins[i])+9, 1)
+  print(sequence)
+  print(wavelengths[sequence])
+
+  wl_mean[i] <- mean(tanData_filtered_wowl[,sequence])
+  wl_var[i] <- var(tanData_filtered_wowl[,sequence])
+  wl_sd[i] <- sd(tanData_filtered_wowl[,sequence])
+  
+  wl_data <- c(tanData_filtered_wowl[,sequence])
+
+  wl_dataframe <- rbind(wl_dataframe, wl_data)
+  
+  if (i == 40){
+    sequence <- 390:400
+    print(sequence)
+  
+    wl_mean[i] <- mean(tanData_filtered_wowl[,sequence])
+    wl_var[i] <- var(tanData_filtered_wowl[,sequence])
+    wl_sd[i] <- sd(tanData_filtered_wowl[,sequence])
+    
+    wl_data <- c(tanData_filtered_wowl[,sequence])
+  
+    wl_dataframe <- rbind(wl_dataframe, wl_data)
+    }
+  print(length(wl_data))
+  # Verifying that for loop worked
+  test_mean <- (c(tanData_filtered_wowl[,sequence]))
+  print(mean(test_mean) == wl_mean[i])
+}
+
+wl_summary_stats <- cbind(wl_mean, wl_var)
+wl_summary_stats <- cbind(wl_summary_stats, wl_sd)
+
+wl_ranges <- c("300-309","310-319","320-329","330-339","340-349","350-359", "360-369","370-379","380-389","390-399","400-409","410-419","420-429","430-439","440-449","450-459","460-469","470-479","480-489","490-499","500-509","510-519","520-529","530-539", "540-549","550-559","560-569","570-579","580-589","590-599","600-609","610-619","620-629","630-639","640-649","650-659","660-669","670-679","680-689","690-700")
+rownames(wl_summary_stats) <- wl_ranges
+
+wl_dataframe <- wl_dataframe[2:41,]
+rownames(wl_dataframe) <- wl_ranges
+wl_dataframe <- t(wl_dataframe)
+
+head(wl_dataframe)
 
 ```
