@@ -32,28 +32,28 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
   # Extracts all of the wavelengths and turns it into a vector
   wl <- dat[[1]][, 1]
-  # Removes the wavelength column from each of the species' dataframes
+  # Removes the wavelength column from each of the species' data frames
   dat <- sapply(dat, "[", -1)
   
   # Takes the reflectance data from each patch available for each species 
   # Combines reflectance data with wavelength vector ranging from 300-700 nm
   specs <- as.rspec(cbind(wl, do.call(cbind, dat)), lim=c(300, 700))
-  # Turns all negative reflectance values in dataframe to 0
+  # Turns all negative reflectance values in data frame to 0
   specs <- procspec(specs, fixneg="zero")
   
-  # Creates a dataframe with just male specimens
+  # Creates a data frame with just male specimens
   male_specs <- specs %>% select(!ends_with("f"))
   
-  # Creates a dataframe from the male specimen data frame using only 
+  # Creates a data frame from the male specimen data frame using only 
   # the crown patch of the bird
   crown_data <- male_specs %>%
     select(wl, starts_with("Crown_")) %>%
@@ -65,7 +65,7 @@ suppressMessages({
   # Adds names of the species to each hex color code
   names(rgb_colors) <- names(crown_data)[-1]
   
-  # Verifies that dataframe has been created correctly
+  # Verifies that data frame has been created correctly
   head(crown_data)
 })
 
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -122,13 +122,13 @@ tanager_species <- tanagerTree$tip.label
 tanData_filtered <- crown_data %>%
   select(wl, any_of(tanager_species))
 
-# Display the filtered tanData to verify dataframe created correctly
+# Display the filtered tanData to verify data frame created correctly
 head(tanData_filtered)
 
-# Verifies that there are 0 species in dataframe that should not be there
+# Verifies that there are 0 species in data frame that should not be there
 (names(tanData_filtered[-1]) == tanager_species)
 
-# Verifies that there are not any species have not been added to dataframe
+# Verifies that there are not any species have not been added to data frame
 length(names(tanData_filtered[-1])) == length(tanager_species)
 
 
@@ -245,11 +245,11 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
   }
   
   
-  # Here we need to make a separate dataframe for our log-transformed data
+  # Here we need to make a separate data frame for our log-transformed data
   # This is to convert any values less than 1 to 1 to avoid Inf/NaN errors during 
   # our log-transformation of the reflectance data
 
-  # Creates a separate dataframe for only log-transformed data
+  # Creates a separate data frame for only log-transformed data
   tanlogData_filtered <- tanData_filtered
   
   # Nested for loop to turn all data points < 1 into 1 to prevent any Inf/NaN errors
@@ -268,7 +268,7 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 }
 
   
-  # This log-transforms every value in our dataframe
+  # This log-transforms every value in our data frame
   tanlogData_filtered <- log(tanlogData_filtered)
   # This converts our wavelength data back to standard values
   # (300-700 nm)
@@ -344,7 +344,7 @@ dev.off()
 
 # Create the spline summary table with coefficients, degree,
 # knot placements, rgb values, and goodness-of-fit metrics.
-# Dataframe just extracts data from the species list data from 
+# data frame just extracts data from the species list data from 
 # each of the respective spline results
 spline_table <- data.frame(
   
@@ -370,10 +370,10 @@ spline_table <- data.frame(
 
 
 # Adding Internal Knots to the spline_table but I perform this outside of 
-# the dataframe function as there are some complications with inserting those
+# the data frame function as there are some complications with inserting those
 # values through the methodology we see below. This method, although an additional
 # step, circumvents the necessity of adding each indiviual knot (for each species)
-# as an individual column in the dataframe
+# as an individual column in the data frame
 
 # Extracts the internal and boundary knot placements for each species 
 # as a matrix for the splines using reflectance data
@@ -399,7 +399,7 @@ spline_table <- cbind(spline_table, Boundary_Knots_log)
 
 
 # 4 for loops to add each set of knot data into a singular column
-# in our spline_table dataframe. Check knot vector min and max values
+# in our spline_table data frame. Check knot vector min and max values
 # to ensure your for loops do not take values from a different knot 
 # dataset.
 
@@ -491,12 +491,12 @@ dev.off()
 
 ### Step 6: Model scores table for reflectance and log reflectance splines
 
-Here, we want to create a separate dataframe in order to easily compare the model scores for the spline fits to each set of data (reflectance versus log-transformed reflectance values). This dataframe will contain the AIC, BIC, and logLik scores that we obtained from our gls function and then we identify which model has the "better" score, and therefore which dataset we should use for our parameter estimation and ancestral state reconstruction.
+Here, we want to create a separate data frame in order to easily compare the model scores for the spline fits to each set of data (reflectance versus log-transformed reflectance values). This data frame will contain the AIC, BIC, and logLik scores that we obtained from our gls function and then we identify which model has the "better" score, and therefore which dataset we should use for our parameter estimation and ancestral state reconstruction.
 
 ```{r}
 
 
-# Creates a separate dataframe only containing the species names and the model scores produced from our gls
+# Creates a separate data frame only containing the species names and the model scores produced from our gls
 spline_model_scores <- spline_table[,c(1,4:9)]
 
 # Adds a column to the end of the data frame capturing the minimum AIC score between the two fits (lowest AIC score is the model you should select)
@@ -506,7 +506,7 @@ spline_model_scores <- spline_model_scores %>%
 
 # Here we create a for loop system to identify and name which dataset used is preferred without having to manually check for each species.
 
-# Placeholder vector to store which dataset is preferred to then be bound to the end of the model scoring dataframe
+# Placeholder vector to store which dataset is preferred to then be bound to the end of the model scoring data frame
 preferred_model_name <- rep(NA, length(spline_model_scores$Species))
 
 # for loop to determine which value (for each species) from our newly generated column matches to which dataset and store the output into the placeholder vector 
@@ -522,16 +522,16 @@ for (i in 1:length(spline_model_scores$Species)){
   }
     }
 
-# Attaches the placeholder vector to the model scores dataframe
+# Attaches the placeholder vector to the model scores data frame
 spline_model_scores <- cbind(spline_model_scores, preferred_model_name)
 
-# Takes the column names of the dataframe and stores them in a vector
+# Takes the column names of the data frame and stores them in a vector
 column_names <- colnames(spline_model_scores)
 
 # Adds a new value to name our newly attached column
 column_names[9] <- "AIC_Preferred_Model_Name"
 
-# Applies our column names vector as the names for our dataframe
+# Applies our column names vector as the names for our data frame
 colnames(spline_model_scores) <- column_names
 
 
@@ -590,10 +590,10 @@ spline_model_scores$logLik_Preferred_Model_Name[spline_model_scores$logLik_Prefe
 spline_model_scores$logLik_Preferred_Model_Name[spline_model_scores$logLik_Preferred_Model_Name == 1] <- "Log Reflectance"
 spline_model_scores$logLik_Preferred_Model_Name[spline_model_scores$logLik_Preferred_Model_Name == 2] <- "Either"
 
-# Reorders the dataframe to put all of the model scores together
+# Reorders the data frame to put all of the model scores together
 spline_model_scores <- spline_model_scores[,c(1,2,3,8,9,4,5,10,11,6,7,12,13)]
 
-# Verifies if the dataframe has been completed correctly
+# Verifies if the data frame has been completed correctly
 head(spline_model_scores)
 ```
 
@@ -696,36 +696,51 @@ title_for_legend <- "Species"
 ```
 
 
-#Step 8: Spline Coefficient Extraction for BEAST
+#Step 8: Summary statistics for 10nm wavelength bins from 300 to 700 nm
 
 ```{r, warning=FALSE}
 
+# Creates a data frame without a column for the wavelengths
 tanData_filtered_wowl <- data.frame(tanData_filtered[-1])
+# Transpose the data frame to put the species names as the rows
 tanData_filtered_wowl <- t(tanData_filtered_wowl)
 
+# Create a counting vector for our for loop below
 wl_bins <- seq(1, 400, 10)
+
+# Creates a wavelength vector to match our counting vector to what our binned wavelengths would be
 wavelengths <- 300:700
 
+# 3 blank vectors to add summary statistics to. Each respectively will contain the mean, variance, and standard deviation for each 10nm wavelength bin
 wl_mean <- rep(NA, 40)
 wl_var <- rep(NA, 40)
 wl_sd <- rep(NA, 40)
+
+# One vector to store the raw data and a blank data frame to store all of the reflectance values for each wavelength bin
 wl_data <- NULL
 wl_dataframe <- NA
 
-
+# for loop to extract the mean, var, and sd from each wavelength bin by using a sequence of columns and performing a summary function on that group of data. Each value is stored in its respective vector and the data is stored within our data frame. For the final bin of data, which has length 11 rather than 10, we do not attach it to our data frame, and leave it stored in our wl_data vector.
 for (i in 1:40){
+  # Creates our 10nm bins up until 690 nm
   sequence <- seq(wl_bins[i],(wl_bins[i])+9, 1)
+  
+  # Verifies that our vector is working and can match it to our wavelength bins for future clarification
   print(sequence)
   print(wavelengths[sequence])
 
+  # Summary stats are stored in their respective locations
   wl_mean[i] <- mean(tanData_filtered_wowl[,sequence])
   wl_var[i] <- var(tanData_filtered_wowl[,sequence])
   wl_sd[i] <- sd(tanData_filtered_wowl[,sequence])
   
+  # Takes the reflectance values from our data frame and stores them in a vector
   wl_data <- c(tanData_filtered_wowl[,sequence])
 
+  # Takes our vector and stores them within a data frame for future use
   wl_dataframe <- rbind(wl_dataframe, wl_data)
   
+  # Need to add this condition due to unequal wavelength bin sizes
   if (i == 40){
     sequence <- 390:400
     print(sequence)
@@ -735,28 +750,106 @@ for (i in 1:40){
     wl_sd[i] <- sd(tanData_filtered_wowl[,sequence])
     
     wl_data <- c(tanData_filtered_wowl[,sequence])
-    }
+  }
+  
+  # Verifies that the length of each bin is 10 nm intervals except for our final interval, which should be 11 nm
   print(length(wl_data))
-  # Verifying that for loop worked
+  
+  # Verifying that for loop worked by comparing the values of our summary stats from our extractions match to the initial dataset. If so, all values should return TRUE.
   test_mean <- (c(tanData_filtered_wowl[,sequence]))
   print(mean(test_mean) == wl_mean[i])
 }
 
+# Combines all of our summary stat vectors into a matrix
 wl_summary_stats <- cbind(wl_mean, wl_var)
 wl_summary_stats <- cbind(wl_summary_stats, wl_sd)
 
-wl_ranges <- c("300-309","310-319","320-329","330-339","340-349","350-359", "360-369","370-379","380-389","390-399","400-409","410-419","420-429","430-439","440-449","450-459","460-469","470-479","480-489","490-499","500-509","510-519","520-529","530-539", "540-549","550-559","560-569","570-579","580-589","590-599","600-609","610-619","620-629","630-639","640-649","650-659","660-669","670-679","680-689","690-700")
-rownames(wl_summary_stats) <- wl_ranges
+# Wavelength bin vector
+wl_bins <- c("300-309","310-319","320-329","330-339","340-349","350-359", "360-369","370-379","380-389","390-399","400-409","410-419","420-429","430-439","440-449","450-459","460-469","470-479","480-489","490-499","500-509","510-519","520-529","530-539", "540-549","550-559","560-569","570-579","580-589","590-599","600-609","610-619","620-629","630-639","640-649","650-659","660-669","670-679","680-689","690-700")
 
-wl_dataframe <- wl_dataframe[2:41,]
-rownames(wl_dataframe) <- wl_ranges
+# Applies our wavelength bins as names for our summary stat matrix
+rownames(wl_summary_stats) <- wl_bins
+
+# Turns our summary stat matrix into a data frame
+wl_summary_stats <- data.frame(wl_summary_stats)
+
+# Verifying that our data frame looks as it should
+head(wl_summary_stats)
+
+
+# Transposes matrix to place wavelength bins as columns
 wl_dataframe <- t(wl_dataframe)
 
+# Removes both the NA column and the last column (690-700 nm) as this column has omitted data due to column length coercion (561 data points -> reduced to 510 data points)
+wl_dataframe <- wl_dataframe[,2:40]
+
+# Takes our dataframe and turns it into a singular vector, and adds our data points from 690-700 nm. We do this to use the boxplot function seamlessly.
+wl_dataframe <- c(wl_dataframe, wl_data)
+
+
+# Blank vector to store our wavelength bins to identify which values in wl_dataframe come from which wavelength bin
+wl_ranges <- NULL
+
+# for loop to create a long character vector listing each wavelength bin equal to number of data points from each wavelength bin
+for (i in 1:40){
+  if (i <= 39){
+  
+  x <- rep(wl_bins[i], 510)
+  
+  wl_ranges <- cbind(wl_ranges, x)
+  
+  }
+  
+    if (i == 40){
+    
+    x <- rep(wl_bins[i], 561)
+    wl_ranges <- c(wl_ranges, x)
+      
+    }
+}
+
+# Binds our reflectance data to each wavelength bin into a matrix
+wl_dataframe <- cbind(wl_dataframe, wl_ranges)
+
+# Verifies matrix was formed correctly
 head(wl_dataframe)
 
+# Adds names to our matrix
+colnames(wl_dataframe) <- c("Reflectance_Values", "Wavelength_Bins")
+
+# Checks that our reflectance values are numerical values and that our wavelength bins are character values
+str(wl_dataframe)
+
+# Converts our Reflectance_Values column into numerical values to use for our boxplot
+wl_dataframe$Reflectance_Values <- as.numeric(wl_dataframe$Reflectance_Values)
+
+# Verifies if our Reflectance_Values column is now numerical values
+str(wl_dataframe)
+
+# Converts our matrix into a data frame
+wl_dataframe <- data.frame(wl_dataframe)
+
+# Vector to match the wavelength bins to their respective color in the visible spectrum
+colors_for_plots <- c(rep("violet", 8), rep("purple", 2), rep("blue",5), rep("green", 7), rep("yellow", 2), rep("orange", 3), rep("orangered",5), rep("red", 8))
+
+# Boxplot of the reflectance data for each wavelength bin
+boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = colors_for_plots, main = "Summary Statistics for Thraupidae (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
+
+```
 
 
-?boxplot
+#Step 9: Spline Coefficient Extraction for BEAST
 
-boxplot(x = wl_dataframe[, 1:39])
+```{r}
+
+
+
+
+
+
+
+
+
+
+
 ```
