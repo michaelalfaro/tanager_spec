@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -913,6 +913,31 @@ for (i in 1:length(coefficient_diffusion_rates_names)){
 coefficient_diffusion_rates <- coefficient_diffusion_rates[,c(1,diffusion_rate_column_order)]
 
 head(coefficient_diffusion_rates)
+
+coefficient_diffusion_rates <- t(coefficient_diffusion_rates)
+
+coefficient_diffusion_rates <- data.frame(coefficient_diffusion_rates)
+
+colnames(coefficient_diffusion_rates) <- coefficient_diffusion_rates[1,]
+
+coefficient_diffusion_rates <- coefficient_diffusion_rates[-1,]
+
+str(coefficient_diffusion_rates)
+
+for (i in c(1:7,9:11)){
+coefficient_diffusion_rates[,i] <- as.numeric(coefficient_diffusion_rates[,i])
+}
+
+str(coefficient_diffusion_rates)
+
+
+(ggplot(coefficient_diffusion_rates, aes(x = 0:38, y = mean))
++ geom_errorbar(aes(ymax = mean+stdev, ymin = mean-stdev), color = "orangered")
++ geom_point(color = "royalblue")
++ ggtitle("Diffusion Rates for Spline Coefficients", subtitle = "0 = Intercept Coefficient")
++ xlab("Spline Coefficients")
++ ylab("Diffusion Rate")
+)
 
 
 ```
