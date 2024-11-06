@@ -25,7 +25,7 @@ library(splines2)
 ```
 
 
-### Loading Reflectance Data
+### Step 1: Loading Reflectance Data
 
 ```{r}
 
@@ -74,7 +74,7 @@ suppressMessages({
 
 
 
-### Step 1 Extracting tanager tree
+### Step 2: Extracting tanager tree
 
 get the tanagers only
 
@@ -112,7 +112,7 @@ write.nexus(tanagerTree, file = "tanagerTree.NEXUS")
 
 
 
-### Step 2 Create a Data Frame Matching the Tanager Tree
+### Step 3: Create a Data Frame Matching the Tanager Tree
 
 ```{r, message=FALSE, warning=FALSE}
 # Extract the species names (tip labels) from the tanagerTree
@@ -136,7 +136,7 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 
 
 
-### Step 3: Fitting Cubic Splines to the Tanager Reflectance and Log-Transformed Reflectance Data
+### Step 4: Fitting Cubic Splines to the Tanager Reflectance and Log-Transformed Reflectance Data
 
 ```{r, message=FALSE, warning=FALSE}
 ### Step 3: Fitting Cubic Splines to Tanager reflectance data
@@ -290,7 +290,7 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 
 
 
-# Step 4: Species plots of splines on refl. and log refl. data
+# Step 5: Species plots of splines on refl. and log refl. data
 
 ```{r}
 
@@ -338,7 +338,7 @@ dev.off()
 ```
 
 
-## Step 5 Print a Summary Table of Spline Fits
+## Step 6: Print a Summary Table of Spline Fits
 
 ```{r, message=FALSE, warning=FALSE}
 
@@ -489,7 +489,7 @@ dev.off()
 ```
 
 
-### Step 6: Model scores table for reflectance and log reflectance splines
+### Step 7: Model scores table for reflectance and log reflectance splines
 
 Here, we want to create a separate data frame in order to easily compare the model scores for the spline fits to each set of data (reflectance versus log-transformed reflectance values). This data frame will contain the AIC, BIC, and logLik scores that we obtained from our gls function and then we identify which model has the "better" score, and therefore which dataset we should use for our parameter estimation and ancestral state reconstruction.
 
@@ -597,7 +597,7 @@ spline_model_scores <- spline_model_scores[,c(1,2,3,8,9,4,5,10,11,6,7,12,13)]
 head(spline_model_scores)
 ```
 
-# Step 7: Plotting model scores between datasets
+# Step 8: Plotting model scores between datasets
 
 Here, we want to plot the model scores from each of the datasets to each other. If our spline fits are identical, our model scores should fit along the line $y=x$. For an inconclusive determination, we would see an even split around the line if there is not a strong preference present. Otherwise, we should expect to a vast majority of data points lying on one side of the line over the other.
 
@@ -696,7 +696,7 @@ title_for_legend <- "Species"
 ```
 
 
-#Step 8: Summary statistics for 10nm wavelength bins from 300 to 700 nm
+#Step 9: Summary statistics for 10nm wavelength bins from 300 to 700 nm
 
 ```{r, warning=FALSE}
 
@@ -817,6 +817,9 @@ head(wl_dataframe)
 # Adds names to our matrix
 colnames(wl_dataframe) <- c("Reflectance_Values", "Wavelength_Bins")
 
+# Converts our matrix into a data frame
+wl_dataframe <- data.frame(wl_dataframe)
+
 # Checks that our reflectance values are numerical values and that our wavelength bins are character values
 str(wl_dataframe)
 
@@ -826,30 +829,92 @@ wl_dataframe$Reflectance_Values <- as.numeric(wl_dataframe$Reflectance_Values)
 # Verifies if our Reflectance_Values column is now numerical values
 str(wl_dataframe)
 
-# Converts our matrix into a data frame
-wl_dataframe <- data.frame(wl_dataframe)
 
 # Vector to match the wavelength bins to their respective color in the visible spectrum
 colors_for_plots <- c(rep("violet", 8), rep("purple", 2), rep("blue",5), rep("green", 7), rep("yellow", 2), rep("orange", 3), rep("orangered",5), rep("red", 8))
 
 # Boxplot of the reflectance data for each wavelength bin
-boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = colors_for_plots, main = "Summary Statistics for Thraupidae (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
+boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = colors_for_plots, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
 
 ```
 
 
-#Step 9: Spline Coefficient Extraction for BEAST
+#Step 10: Spline Coefficient Extraction for BEAST
 
 ```{r}
 
 
+# Empty matrix for the spline coefficients
+spline_coef_data <- NA
 
+# for loop to extract spline coefficients for each species from our spline_results (list)
+for (species_name in names(spline_results)){
+  
+  name_vector <- as.character(species_name)
+  
+  spline_coefficients <- spline_results[[name_vector]]
+  
+  spline_coefficients <- spline_coefficients$reflectance_coef
+  
+  spline_coef_data <- rbind(spline_coef_data, spline_coefficients)
+  
+  
+}
 
+# Removes NA row
+spline_coef_data <- spline_coef_data[-1,]
 
+# Turns our matrix into a data frame
+spline_coef_data <- data.frame(spline_coef_data)
 
+# Adds species labels to each row of spline coefficients
+rownames(spline_coef_data) <- names(spline_results)
 
+# Explicit species name vector to add to our data frame
+species <- as.character(names(spline_results))
 
+# Adds a species name vector to our data frame. This is needed for BEAST to know what spline coefficients are for each species
+spline_coef_data <- cbind(species, spline_coef_data)
+
+# Vector containing the names of the species column and each spline coefficient extracted
+coefficient_names <- c("Species", "Intercept", "Coefficient.1","Coefficient.2","Coefficient.3","Coefficient.4","Coefficient.5","Coefficient.6","Coefficient.7","Coefficient.8","Coefficient.9","Coefficient.10","Coefficient.11","Coefficient.12","Coefficient.13","Coefficient.14","Coefficient.15","Coefficient.16","Coefficient.17","Coefficient.18","Coefficient.19","Coefficient.20","Coefficient.21","Coefficient.22","Coefficient.23","Coefficient.24","Coefficient.25","Coefficient.26","Coefficient.27","Coefficient.28","Coefficient.29","Coefficient.30","Coefficient.31","Coefficient.32","Coefficient.33","Coefficient.34","Coefficient.35","Coefficient.36","Coefficient.37","Coefficient.38")
+
+# Applies our coefficient name vector to our data frame
+colnames(spline_coef_data) <- coefficient_names
+
+# Verifies our data is in a data frame
+str(spline_coef_data)
+
+# Writes a text file of our data frame to use for BEAST
+write_tsv(spline_coef_data, file = "spline_coefficients_BEAST.txt")
 
 
 
 ```
+
+
+
+# Step 11: OUTLINING BEAST AND TRACER PROCESS
+
+# Step 12: Analyzing diffusion rates of spline coefficients
+
+```{r}
+
+coefficient_diffusion_rates <- read.delim("diffusion_rate_data.txt")
+
+coefficient_diffusion_rates_names <- c("Intercept.diffusionRate", "Coefficient.1.diffusionRate","Coefficient.2.diffusionRate","Coefficient.3.diffusionRate","Coefficient.4.diffusionRate","Coefficient.5.diffusionRate","Coefficient.6.diffusionRate","Coefficient.7.diffusionRate","Coefficient.8.diffusionRate","Coefficient.9.diffusionRate","Coefficient.10.diffusionRate","Coefficient.11.diffusionRate","Coefficient.12.diffusionRate","Coefficient.13.diffusionRate","Coefficient.14.diffusionRate","Coefficient.15.diffusionRate","Coefficient.16.diffusionRate","Coefficient.17.diffusionRate","Coefficient.18.diffusionRate","Coefficient.19.diffusionRate","Coefficient.20.diffusionRate","Coefficient.21.diffusionRate","Coefficient.22.diffusionRate","Coefficient.23.diffusionRate","Coefficient.24.diffusionRate","Coefficient.25.diffusionRate","Coefficient.26.diffusionRate","Coefficient.27.diffusionRate","Coefficient.28.diffusionRate","Coefficient.29.diffusionRate","Coefficient.30.diffusionRate","Coefficient.31.diffusionRate","Coefficient.32.diffusionRate","Coefficient.33.diffusionRate","Coefficient.34.diffusionRate","Coefficient.35.diffusionRate","Coefficient.36.diffusionRate","Coefficient.37.diffusionRate","Coefficient.38.diffusionRate")
+
+diffusion_rate_column_order <- NULL
+for (i in 1:length(coefficient_diffusion_rates_names)){
+  diffusion_rate_column_order[i] <- which(coefficient_diffusion_rates_names[i] == colnames(coefficient_diffusion_rates))
+    print(which(coefficient_diffusion_rates_names[i] == colnames(coefficient_diffusion_rates)))
+}
+
+coefficient_diffusion_rates <- coefficient_diffusion_rates[,c(1,diffusion_rate_column_order)]
+
+head(coefficient_diffusion_rates)
+
+
+```
+
+# Step 13: Reconstucting splines (methods)
