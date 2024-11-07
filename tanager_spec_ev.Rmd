@@ -606,24 +606,19 @@ Here, we want to plot the model scores from each of the datasets to each other. 
 ```{r}
 
 
-name_vector <- NULL
-position <- NULL
-position_vector <- NULL
+# Create a vector of the color codes for each species to use in ggplot2 scatterplots
+tanager_subset_colors <- c(spline_table[, "RGB_Color"])
 
-for (species_name in names(spline_results)){
-  name_vector <- as.character(species_name)
-  position <- (which(spline_model_scores$Species == name_vector))
-  position_vector <- rbind(position_vector, position)
-}
-
-tanager_subset_colors <- spline_table[c(position_vector), "RGB_Color"]
+# Puts the species name for each color as the names for the vector
 names(tanager_subset_colors) <- spline_table$Species
 
+# Character vector to be used as the title for our scatterplot legend (there could be other methods of doing this, but this was the one that I could figure out how to use with ggplot2)
 title_for_legend <- "Species"
 
 
 # AIC scores
 
+# Scatterplot showing data spaced around the origin with y=x line present
 (ggplot(data = spline_model_scores, aes(x = Reflectance_AIC, y = Log_Reflectance_AIC))
 + geom_point(aes(color = names(tanager_subset_colors)))
 + theme(legend.key.size = unit(0.5, "cm"))
@@ -636,7 +631,7 @@ title_for_legend <- "Species"
 + scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
 )
 
-
+# Scatterplot centered around the data
 (ggplot(data = spline_model_scores, aes(x = Reflectance_AIC, y = Log_Reflectance_AIC))
 + geom_point(aes(color = names(tanager_subset_colors)))
 + theme(legend.key.size = unit(0.5, "cm"))
@@ -650,6 +645,7 @@ title_for_legend <- "Species"
 
 # BIC scores
 
+# Scatterplot showing data spaced around the origin with y=x line present
 (ggplot(data = spline_model_scores, aes(x = Reflectance_BIC, y = Log_Reflectance_BIC))
 + geom_point(aes(color = names(tanager_subset_colors))) 
 + theme(legend.key.size = unit(0.5, "cm"))
@@ -662,6 +658,7 @@ title_for_legend <- "Species"
 + scale_color_manual(title_for_legend,values = as.character(tanager_subset_colors))
 )
 
+# Scatterplot centered around the data
 (ggplot(data = spline_model_scores, aes(x = Reflectance_BIC, y = Log_Reflectance_BIC))
 + geom_point(aes(color = names(tanager_subset_colors)))
 + theme(legend.key.size = unit(0.5, "cm"))
@@ -674,6 +671,7 @@ title_for_legend <- "Species"
 
 # logLik scores
 
+# Scatterplot showing data spaced around the origin with y=x line present
 (ggplot(data = spline_model_scores, aes(x = Reflectance_logLik, y = Log_Reflectance_logLik)) + geom_point(aes(color = names(tanager_subset_colors)))
 + theme(legend.key.size = unit(0.5, "cm"))
 + xlab("Reflectance logLik Score") 
@@ -682,6 +680,7 @@ title_for_legend <- "Species"
 + scale_color_manual(title_for_legend, values = as.character(tanager_subset_colors))
 )
 
+# Scatterplot centered around the data
 (ggplot(data = spline_model_scores, aes(x = Reflectance_logLik, y = Log_Reflectance_logLik)) + geom_point(aes(color = names(tanager_subset_colors)))
 + theme(legend.key.size = unit(0.5, "cm"))
 + geom_hline(yintercept = 0)
@@ -902,37 +901,51 @@ write_tsv(spline_coef_data, file = "spline_coefficients_BEAST.txt")
 
 ```{r}
 
+# Loads in the .txt file containing our diffusion rate data for our spline coefficients
 coefficient_diffusion_rates <- read.delim("diffusion_rate_data.txt")
 
+# Manually written vector to contain an ordered list of the spline coefficients
 coefficient_diffusion_rates_names <- c("Intercept.diffusionRate", "Coefficient.1.diffusionRate","Coefficient.2.diffusionRate","Coefficient.3.diffusionRate","Coefficient.4.diffusionRate","Coefficient.5.diffusionRate","Coefficient.6.diffusionRate","Coefficient.7.diffusionRate","Coefficient.8.diffusionRate","Coefficient.9.diffusionRate","Coefficient.10.diffusionRate","Coefficient.11.diffusionRate","Coefficient.12.diffusionRate","Coefficient.13.diffusionRate","Coefficient.14.diffusionRate","Coefficient.15.diffusionRate","Coefficient.16.diffusionRate","Coefficient.17.diffusionRate","Coefficient.18.diffusionRate","Coefficient.19.diffusionRate","Coefficient.20.diffusionRate","Coefficient.21.diffusionRate","Coefficient.22.diffusionRate","Coefficient.23.diffusionRate","Coefficient.24.diffusionRate","Coefficient.25.diffusionRate","Coefficient.26.diffusionRate","Coefficient.27.diffusionRate","Coefficient.28.diffusionRate","Coefficient.29.diffusionRate","Coefficient.30.diffusionRate","Coefficient.31.diffusionRate","Coefficient.32.diffusionRate","Coefficient.33.diffusionRate","Coefficient.34.diffusionRate","Coefficient.35.diffusionRate","Coefficient.36.diffusionRate","Coefficient.37.diffusionRate","Coefficient.38.diffusionRate")
 
+# Blank vector to store the order of the columns in relation to the order of our spline coefficient names vector
 diffusion_rate_column_order <- NULL
+
+# for loop to figure out the location of each column to to put it in sequential order (Intercept, 1, 2, ..., 38). This step is necessary as the columns are not in this sequential order when extracted from BEAST.
 for (i in 1:length(coefficient_diffusion_rates_names)){
   diffusion_rate_column_order[i] <- which(coefficient_diffusion_rates_names[i] == colnames(coefficient_diffusion_rates))
     print(which(coefficient_diffusion_rates_names[i] == colnames(coefficient_diffusion_rates)))
 }
 
+# Reorders the columns of our data frame to match the sequential order that we would like
 coefficient_diffusion_rates <- coefficient_diffusion_rates[,c(1,diffusion_rate_column_order)]
 
+# Verifies that we have the correct order that we are looking for
 head(coefficient_diffusion_rates)
 
+# Transposes the data frame to make the coefficients the rows
 coefficient_diffusion_rates <- t(coefficient_diffusion_rates)
 
+# When transposing the data frame, our data frame became a matrix, and here we convert it back into a data frame
 coefficient_diffusion_rates <- data.frame(coefficient_diffusion_rates)
 
+# Turns the column names with the values in the first row
 colnames(coefficient_diffusion_rates) <- coefficient_diffusion_rates[1,]
 
+# We remove the first row as they are now the column names for our data frame
 coefficient_diffusion_rates <- coefficient_diffusion_rates[-1,]
 
+# Verifies the structure of our object. We can see that all numerical values had been coerced into character vectors
 str(coefficient_diffusion_rates)
 
-for (i in c(1:7,9:11)){
+# for loop to convert all columns into numerical values rather than character values (with the exception of the 95% HPD interval and value range columns as there are not singular values and do not work the as.numeric function)
+for (i in c(1:5,7,9:11)){
 coefficient_diffusion_rates[,i] <- as.numeric(coefficient_diffusion_rates[,i])
 }
 
+# Verifies that the columns that we converted are now numeric in nature
 str(coefficient_diffusion_rates)
 
-
+# Scatterplot showing the mean diffusion rate values for our spline coefficients, showing error bars equivalent to +/- 1 standard deviation
 (ggplot(coefficient_diffusion_rates, aes(x = 0:38, y = mean))
 + geom_errorbar(aes(ymax = mean+stdev, ymin = mean-stdev), color = "orangered")
 + geom_point(color = "royalblue")
@@ -953,13 +966,15 @@ One of the main points of reconstructing splines is that we need to do it withou
 #### Spline Reconstruction from gls function
 ```{r}
 
+# Extracting all of the data from our fit_splines function into a new object (named after our focal species)
 TanCyo <- spline_results[["TanCyo"]]
 
+# Here we plot a scatterplot using the predicted points from our gls model for this species
 plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = TanCyo$reflectance_rgb, pch = 19, xlab = "Wavelength (nm)", ylab = " Reflectance (%)", main = "TanCyo gls Spline Reconstruction")
 
 
 
-# Side-by-side plot comparison of our gls reconstructed plot and the plot from Step 5
+# Side-by-side plot comparison of our gls reconstructed plot and the plot from Step 5 (using the actual reflectance data)
 
 par(mfrow=c(1,2), mar = c(5.1,4.1,4.1,1.1))
 
@@ -986,29 +1001,39 @@ I could not find an intuitive way to do this through just base R, but by using t
 
 ```{r}
 
-
+# Creating a basis matrix using the function bSpline from the splines2 package. We use the same wavelength range and maintain the same degrees of freedom (35 knots)
 bspline_matrix_bSpline <- bSpline(tanData_filtered$wl, df = 38)
 
-# Verifying that these two functions produce identical matrices (output should be TRUE)
+# Verifying that the bSpline and bs functions produce identical basis matrices (output should be TRUE)
 identical(data.frame(bs(tanData_filtered$wl, df = 38)), data.frame(bSpline(tanData_filtered$wl, df = 38)))
 
-
+# Extract the coefficients available to us from our gls model fit into its own vector
 TanCyo_spline_coefficients <- TanCyo$reflectance_coef
 
 # Must make coefficients from 2:39 as bSpline function does not create an intercept coefficient in its output, and therefore cannot use it in reconstructions
-coef_spline_reconstruction <- cbind(300:700,predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
+coef_spline_reconstruction <- cbind(300:700, predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
 
+# Adds names to the columns of the matrix
 colnames(coef_spline_reconstruction) <- c("wl", "reflectance")
 
+# Turns the matrix into a data frame
 coef_spline_reconstruction <- data.frame(coef_spline_reconstruction)
 
+# Code to show why we need to use the splines2 package
+# Basis matrix produced by the function bs
 bspline_matrix_bs <- bs(tanData_filtered$wl, df = 38)
-str(predict(bspline_matrix_bs, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
-str(coef_spline_reconstruction)
 
+# Object that would be created using the bs produced matrix. The output is another matrix
+str(predict(bspline_matrix_bs, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
+
+# Object that would be created using the bSpline produced matrix. The output is a one column matrix (or a vector)
+str(predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
+
+# Plotting the spline reconstruction using our matrix/coef method
 plot(x = 300:700, y = coef_spline_reconstruction$reflectance, pch = 19, main = "TanCyo Coefficient Spline Reconstruction", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", col = spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero")))
 
 
+# Side-by-side plots of the gls reconstruction and matrix/coef reconstruction
 par(mfrow=c(1,2), mar = c(5.1,4.1,4.1,1.1))
 
 plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = TanCyo$reflectance_rgb, pch = 19, xlab = "Wavelength (nm)", ylab = " Reflectance (%)", main = "gls Spline Reconstruction", cex = 1)
@@ -1025,16 +1050,20 @@ From the plots above, we can see two key differences from our initial plot. The 
 
 ```{r message = FALSE}
 
+# Prints TanCyo intercept coefficient
 TanCyo$reflectance_coef[1]
 
+# Plots the reconstructed splines from the matrix/coef method but adds the intercept values to the reconstructed reflectance values
 plot(x = 300:700, y = coef_spline_reconstruction$reflectance + TanCyo$reflectance_coef[1], pch = 19, main = "Coefficient Spline Reconst.", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", col = spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero")))
 mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
 
-
+# Copies our coef_spline_reconstruction data frame
 coef_spline_reconstruction_plusintercept <- coef_spline_reconstruction
+
+# Adds the intercept coefficient value to all of the reflectance values
 coef_spline_reconstruction_plusintercept$reflectance <- coef_spline_reconstruction_plusintercept$reflectance + TanCyo$reflectance_coef[1]
 
-
+# Side-by-side plots of the initial data, gls reconstruction, matrix/coef reconstruction, modified matrix/coef reconstruction
 par(mfrow=c(2,2), mar = c(5.1,4.1,4.1,1.1))
 
 plot(tanData_filtered$wl, tanData_filtered$TanCyo, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
@@ -1079,8 +1108,10 @@ In the last step, we were able to reconstruct what the splines were through the 
 
 ```{r}
 
+# Taking our matrix created from bSpline and turning it into a matrix object
 basis_spline_matrix <- matrix(bspline_matrix_bSpline, nrow = 401, ncol = 38)
 
+# Turning our TanCyo reflectance coefficients into a 38x1 matrix
 spline_coefficient_matrix <- matrix(TanCyo$reflectance_coef[2:39])
 
 # Multiplying the matrices using the matrix multiplication operator (%*%)
@@ -1118,15 +1149,15 @@ plot(300:700, test2[,2])
 
 
 par(mfrow=c(1,2))
-plot(300:700, test[,2], pch = 19)
-plot(300:700, test2[,2], pch = 19)
+plot(300:700, test[,2], pch = 19, main = "TanCyo Base Coef.")
+plot(300:700, test2[,2], pch = 19, main = "TanCyo Adjusted Coef.")
 par(mfrow=c(1,1))
 
 y <- cbind(predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))),predict(bspline_matrix_bSpline, coef = x))
 y <- cbind(300:700,y)
 
 ```
-
+I do not think the basis matrix or the spline coefficients have any inherit biological information.
 
 ### Step 16: Comparing our splines for mean reflectance data and mean spline coefficients
 
