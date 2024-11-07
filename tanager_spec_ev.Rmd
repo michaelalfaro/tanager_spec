@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -137,6 +137,8 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 
 
 ### Step 4: Fitting Cubic Splines to the Tanager Reflectance and Log-Transformed Reflectance Data
+
+Website that explains what splines are: https://community.jmp.com/t5/JMPer-Cable/Understanding-cubic-splines/ba-p/39511
 
 ```{r, message=FALSE, warning=FALSE}
 ### Step 3: Fitting Cubic Splines to Tanager reflectance data
@@ -943,3 +945,189 @@ str(coefficient_diffusion_rates)
 ```
 
 # Step 13: Reconstucting splines (methods)
+
+One of the main points of reconstructing splines is that we need to do it without the predictive power of a generalized least squares model, which is how we did it in Step 5. This is due to the fact that when we allow our coefficients to diffuse in BEAST for an ancestral state reconstruction (ASR), the only things that we have to reconstruct our diffused splines will just be diffused coefficients and the basis that we are working with (300-700 nm). Below, I will use a case study, using TanCyo (Tangara cyanotis) to show how we can construct splines for a species without the need for a least squares model.
+
+
+
+#### Spline Reconstruction from gls function
+```{r}
+
+TanCyo <- spline_results[["TanCyo"]]
+
+plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = TanCyo$reflectance_rgb, pch = 19, xlab = "Wavelength (nm)", ylab = " Reflectance (%)", main = "TanCyo gls Spline Reconstruction")
+
+
+
+# Side-by-side plot comparison of our gls reconstructed plot and the plot from Step 5
+
+par(mfrow=c(1,2), mar = c(5.1,4.1,4.1,1.1))
+
+plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = TanCyo$reflectance_rgb, pch = 19, xlab = "Wavelength (nm)", ylab = " Reflectance (%)", main = "gls Spline Reconstruction", cex = 0.6)
+mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
+
+plot(tanData_filtered$wl, tanData_filtered$TanCyo, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Cubic Splines (Refl.) -", "TanCyo"),
+     xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+lines(tanData_filtered$wl, predict(spline_results[["TanCyo"]]$reflectance_spline_fit), col = rgb_colors[["TanCyo"]], lwd = 2)
+mtext(paste("AIC:", round(spline_results[["TanCyo"]]$reflectance_AIC, 3), "BIC:", round(spline_results[["TanCyo"]]$reflectance_BIC, 2), "logLik:", round(spline_results[["TanCyo"]]$reflectance_logLik)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+
+par(mfrow=c(1,1), mar = c(5.1,4.1,4.1,2.1))
+
+
+
+```
+
+#### Spline Reconstruction with only spline coefficients and a basis
+
+I could not find an intuitive way to do this through just base R, but by using the package splines2, I am able to reconstruct the splines with just this information available.
+
+```{r}
+
+
+bspline_matrix_bSpline <- bSpline(tanData_filtered$wl, df = 38)
+
+# Verifying that these two functions produce identical matrices (output should be TRUE)
+identical(data.frame(bs(tanData_filtered$wl, df = 38)), data.frame(bSpline(tanData_filtered$wl, df = 38)))
+
+
+TanCyo_spline_coefficients <- TanCyo$reflectance_coef
+
+# Must make coefficients from 2:39 as bSpline function does not create an intercept coefficient in its output, and therefore cannot use it in reconstructions
+coef_spline_reconstruction <- cbind(300:700,predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
+
+colnames(coef_spline_reconstruction) <- c("wl", "reflectance")
+
+coef_spline_reconstruction <- data.frame(coef_spline_reconstruction)
+
+bspline_matrix_bs <- bs(tanData_filtered$wl, df = 38)
+str(predict(bspline_matrix_bs, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
+str(coef_spline_reconstruction)
+
+plot(x = 300:700, y = coef_spline_reconstruction$reflectance, pch = 19, main = "TanCyo Coefficient Spline Reconstruction", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", col = spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero")))
+
+
+par(mfrow=c(1,2), mar = c(5.1,4.1,4.1,1.1))
+
+plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = TanCyo$reflectance_rgb, pch = 19, xlab = "Wavelength (nm)", ylab = " Reflectance (%)", main = "gls Spline Reconstruction", cex = 1)
+mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
+
+
+plot(x = 300:700, y = coef_spline_reconstruction$reflectance, pch = 19, main = "Coefficient Spline Reconst.", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", col = spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero")))
+mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
+
+par(mfrow=c(1,1), mar = c(5.1,4.1,4.1,2.1))
+```
+
+From the plots above, we can see two key differences from our initial plot. The first is that the color between the plots. The gls plot has an RGB color of `r TanCyo$reflectance_rgb`, while the coefficient method has a color of `r spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero"))`. The next major difference (and directly impacts why there is a color change), is that the reflectance scales are completely different from another, with all values on the left plot being greater than 0, while the data points on the right plot do not follow that trend. So if using a basis and spline coefficients to rebuild a curve, will we lose all of the biological information, where we only retain the shape of the curve? No. Earlier in our reconstruction, we mentioned that we had to omit the intercept coefficient due to `predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39])))` not being able to use it. But the intercept coefficient is important in dictating where to place the spline along the y-axis, thus all we have to do to our data is to add the spline coefficient value to all of our data points.
+
+```{r message = FALSE}
+
+TanCyo$reflectance_coef[1]
+
+plot(x = 300:700, y = coef_spline_reconstruction$reflectance + TanCyo$reflectance_coef[1], pch = 19, main = "Coefficient Spline Reconst.", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", col = spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero")))
+mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
+
+
+coef_spline_reconstruction_plusintercept <- coef_spline_reconstruction
+coef_spline_reconstruction_plusintercept$reflectance <- coef_spline_reconstruction_plusintercept$reflectance + TanCyo$reflectance_coef[1]
+
+
+par(mfrow=c(2,2), mar = c(5.1,4.1,4.1,1.1))
+
+plot(tanData_filtered$wl, tanData_filtered$TanCyo, type = "p", pch = 16, cex = 0.5,  # Adjusted size of points
+     col = adjustcolor("black", alpha.f = 0.5),  # Adjusted transparency of points
+     main = paste("Cubic Splines (Refl.) -", "TanCyo"),
+     xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+lines(tanData_filtered$wl, predict(spline_results[["TanCyo"]]$reflectance_spline_fit), col = rgb_colors[["TanCyo"]], lwd = 2)
+mtext(paste("AIC:", round(spline_results[["TanCyo"]]$reflectance_AIC, 3), "BIC:", round(spline_results[["TanCyo"]]$reflectance_BIC, 2), "logLik:", round(spline_results[["TanCyo"]]$reflectance_logLik)),
+      side = 3, line = 0.5, cex = 0.8, col = "blue")
+
+plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = TanCyo$reflectance_rgb, pch = 19, xlab = "Wavelength (nm)", ylab = " Reflectance (%)", main = "gls Spline Reconstruction", cex = 0.6)
+mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
+
+
+plot(x = 300:700, y = coef_spline_reconstruction$reflectance, pch = 19, main = "Coefficient Spline Reconst.", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", cex = 0.6, col = spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero")))
+mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
+
+plot(x = 300:700, y = coef_spline_reconstruction_plusintercept$reflectance, pch = 19, main = "Coefficient Spline Reconst.", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", cex = 0.6, col = spec2rgb(procspec(as.rspec(coef_spline_reconstruction_plusintercept), fixneg = "zero")))
+mtext("TanCyo", col = "blue", side = 3, line = 0.5, cex = 0.8)
+
+par(mfrow=c(1,1), mar = c(5.1,4.1,4.1,2.1))
+
+
+# Verification that our final spline reconstruction produces an identical color to the initial reflectance data and the gls reconstruction method
+
+# Plot 1
+rgb_colors[["TanCyo"]]
+# Plot 2
+TanCyo$reflectance_rgb
+# Plot 3
+spec2rgb(procspec(as.rspec(coef_spline_reconstruction), fixneg = "zero"))
+# Plot 4
+spec2rgb(procspec(as.rspec(coef_spline_reconstruction_plusintercept), fixneg = "zero"))
+
+```
+Thus, we have shown we have accurately recreated the spline from our gls model and can produce identical colors to that of the original data just from the spline coefficients for a species and by using a basis for the trait data.
+
+
+### Step 14: What do the coefficients mean?
+
+In the last step, we were able to reconstruct what the splines were through the use of a basis (wavelengths from 300-700 nm) and spline coefficients. We were able to deduce that the intercept was the key component to maintaining the biological meaning to our splines if ran through BEAST. Here we attempt to identify the function of the different spline coefficients through the case study of TanCyo. 
+
+```{r}
+
+basis_spline_matrix <- matrix(bspline_matrix_bSpline, nrow = 401, ncol = 38)
+
+spline_coefficient_matrix <- matrix(TanCyo$reflectance_coef[2:39])
+
+# Multiplying the matrices using the matrix multiplication operator (%*%)
+spline_reconstruction <- basis_spline_matrix %*% spline_coefficient_matrix
+
+# Verification that this matrix multiplication is how we are getting our curves through the spline functions (does not include the addition of the intercept coefficient here although if the answer is TRUE, adding the intercept to both objects will still produce a TRUE output)
+identical(c(spline_reconstruction), coef_spline_reconstruction$reflectance)
+
+
+
+```
+IT'S JUST MATRIX MULTIPLICATION, I HAVE NO IDEA WHAT THE BIOLOGICAL INTERPRETATION OF THE COEFFICIENTS ARE BUT I DOUBT IT IS USEFUL TO TRY AND UNDERSTAND THEM OR TAKE MEANS OF THEM ETC. 
+The real question at this stage is to identify what the basis matrix represents for our system, as it is not clear as to what it could represent. Are the spline coefficients just a scalar to shape the curve?
+
+
+
+
+### Step 15: What do spline coefficients do? What does the basis matrix mean?
+```{r}
+
+
+
+
+test <- cbind(300:700,predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
+
+
+plot(300:700, test[,2])
+
+x <- TanCyo_spline_coefficients[2:39]
+print(TanCyo_spline_coefficients[21])
+x[20] <- x[20]+1
+
+test2 <- cbind(300:700, predict(bspline_matrix_bSpline, coef = x))
+plot(300:700, test2[,2])
+
+
+par(mfrow=c(1,2))
+plot(300:700, test[,2], pch = 19)
+plot(300:700, test2[,2], pch = 19)
+par(mfrow=c(1,1))
+
+y <- cbind(predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))),predict(bspline_matrix_bSpline, coef = x))
+y <- cbind(300:700,y)
+
+```
+
+
+### Step 16: Comparing our splines for mean reflectance data and mean spline coefficients
+
+
