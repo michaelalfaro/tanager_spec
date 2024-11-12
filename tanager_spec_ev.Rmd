@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -795,7 +795,7 @@ wl_ranges <- NULL
 for (i in 1:40){
   if (i <= 39){
   
-  x <- rep(wl_bins[i], 510)
+  x <- rep(binned_wl[i], 510)
   
   wl_ranges <- cbind(wl_ranges, x)
   
@@ -803,7 +803,7 @@ for (i in 1:40){
   
     if (i == 40){
     
-    x <- rep(wl_bins[i], 561)
+    x <- rep(binned_wl[i], 561)
     wl_ranges <- c(wl_ranges, x)
       
     }
@@ -830,14 +830,37 @@ wl_dataframe$Reflectance_Values <- as.numeric(wl_dataframe$Reflectance_Values)
 # Verifies if our Reflectance_Values column is now numerical values
 str(wl_dataframe)
 
+# Sequence vector with the midpoints of our wavelength bins
+sequence <- seq(305, 695, 10)
 
-# Vector to match the wavelength bins to their respective color in the visible spectrum
-colors_for_plots <- c(rep("violet", 8), rep("purple", 2), rep("blue",5), rep("green", 7), rep("yellow", 2), rep("orange", 3), rep("orangered",5), rep("red", 8))
+# Blank vectors to store RGB codes into
+color_for_plots_V1 <- NULL
+color_for_plots_V2 <- NULL
+color_for_plots_V3 <- NULL
+color_for_plots_V4 <- NULL
 
-length(colors_for_plots, )
+# for loop to generate different color options for the boxplots. Here we parameterize different Gaussian curves of spectra at the midpoint of each wavelength interval with varying widths and heights of our curves.
+for (i in 1:length(sequence)){
+  
+  color_for_plots_V1[i] <- spec2rgb(simulate_spec(wl_peak = sequence[i]))
+  
+  color_for_plots_V2[i] <- spec2rgb(simulate_spec(wl_peak = sequence[i], width_gauss = 10))
+  
+  color_for_plots_V3[i] <- spec2rgb(simulate_spec(wl_peak = sequence[i], width_gauss = 10, ylim = c(0, wl_summary_stats[i,1])))
+  
+  color_for_plots_V4[i] <- spec2rgb(simulate_spec(wl_peak = sequence[i], ylim = c(0, wl_summary_stats[i,1])))
+}
 
-# Boxplot of the reflectance data for each wavelength bin
-boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = binned_wl_color, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
+
+# Boxplots of the reflectance data for each wavelength bin with different color options
+
+boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = color_for_plots_V1, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
+
+boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = color_for_plots_V2, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
+
+boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = color_for_plots_V3, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
+
+boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = color_for_plots_V4, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
 
 ```
 
@@ -1163,21 +1186,43 @@ I do not think the basis matrix or the spline coefficients have any inherit biol
 
 ### Step 16: Comparing our splines for mean reflectance data and mean spline coefficients
 
-
-
-
 ```{r}
 
+mean_reflectance_values <- NULL
+for (i in 1:401){
 
-simulate_spec()
+  x <- i
+  mean_reflectance_values[i] <- mean(tanData_filtered_wowl[,x])
 
-binned_reflectance_vector <- rep(0, 401)
-binned_reflectance_vector[200:209] <- 100
-binned_reflectance_vector
-binned_reflectance_vector <- cbind(300:700, binned_reflectance_vector)
-colnames(binned_reflectance_vector) <- c("wl", "reflectance")
-binned_reflectance_vector <- data.frame(binned_reflectance_vector)
-binned_reflectance_vector
-binned_reflectance_vector <- as.rspec(binned_reflectance_vector)
-spec2rgb(binned_reflectance_vector, alpha = 0.05)
+}
+
+random_number <- round(runif(1, min = 1, max = 401), 0)
+mean_reflectance_values[random_number] == mean(tanData_filtered_wowl[,random_number])
+
+mean_reflectance_values <- cbind(300:700, mean_reflectance_values)
+
+spline_fit_mean_reflectance <- gls(mean_reflectance_values[,2] ~ bs(mean_reflectance_values[,1], df = 38), correlation = corAR1(form = ~1))
+
+mean_reflectance_values <- cbind(mean_reflectance_values, predict(spline_fit_mean_reflectance)) 
+
+colnames(mean_reflectance_values) <- c("wl", "reflectance", "spline_fit")
+
+plot(x = 300:700, y = mean_reflectance_values[,"reflectance"], xlab = "Wavelength (nm)", ylab = "Reflectance (%)", main = "Mean Reflectance Values", pch = 19, cex = 0.75)
+lines(x = 300:700, y = mean_reflectance_values[,"spline_fit"], col = spec2rgb(procspec(as.rspec(mean_reflectance_values), fixneg = "zero")), lwd = 3)
+
+mean_spline_coefficients <- NULL
+for (i in 1:39){
+  
+  x <- i+1
+  
+  mean_spline_coefficients[i] <- mean(spline_coef_data[,x])
+  
+}
+
+random_number <- round(runif(1, min = 1, max = 39), 0)
+mean_spline_coefficients[random_number] == mean(spline_coef_data[,random_number+1])
+
+
+
+
 ```
