@@ -766,10 +766,10 @@ wl_summary_stats <- cbind(wl_mean, wl_var)
 wl_summary_stats <- cbind(wl_summary_stats, wl_sd)
 
 # Wavelength bin vector
-wl_bins <- c("300-309","310-319","320-329","330-339","340-349","350-359", "360-369","370-379","380-389","390-399","400-409","410-419","420-429","430-439","440-449","450-459","460-469","470-479","480-489","490-499","500-509","510-519","520-529","530-539", "540-549","550-559","560-569","570-579","580-589","590-599","600-609","610-619","620-629","630-639","640-649","650-659","660-669","670-679","680-689","690-700")
+binned_wl <- c("300-309","310-319","320-329","330-339","340-349","350-359", "360-369","370-379","380-389","390-399","400-409","410-419","420-429","430-439","440-449","450-459","460-469","470-479","480-489","490-499","500-509","510-519","520-529","530-539", "540-549","550-559","560-569","570-579","580-589","590-599","600-609","610-619","620-629","630-639","640-649","650-659","660-669","670-679","680-689","690-700")
 
 # Applies our wavelength bins as names for our summary stat matrix
-rownames(wl_summary_stats) <- wl_bins
+rownames(wl_summary_stats) <- binned_wl
 
 # Turns our summary stat matrix into a data frame
 wl_summary_stats <- data.frame(wl_summary_stats)
@@ -834,13 +834,15 @@ str(wl_dataframe)
 # Vector to match the wavelength bins to their respective color in the visible spectrum
 colors_for_plots <- c(rep("violet", 8), rep("purple", 2), rep("blue",5), rep("green", 7), rep("yellow", 2), rep("orange", 3), rep("orangered",5), rep("red", 8))
 
+length(colors_for_plots, )
+
 # Boxplot of the reflectance data for each wavelength bin
-boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = colors_for_plots, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
+boxplot(data = wl_dataframe, Reflectance_Values~Wavelength_Bins, col = binned_wl_color, main = "Summary Statistics for Thraupidae Crown Reflectance (51 Species)", xlab = "Wavelength Bins (10nm Intervals)", ylab = "Reflectance (%)")
 
 ```
 
 
-#Step 10: Spline Coefficient Extraction for BEAST
+### Step 10: Spline Coefficient Extraction for BEAST
 
 ```{r}
 
@@ -1135,26 +1137,26 @@ The real question at this stage is to identify what the basis matrix represents 
 
 
 
-test <- cbind(300:700,predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
+TanCyo_spline_reconstruction <- cbind(300:700,predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))))
 
 
-plot(300:700, test[,2])
+plot(300:700, TanCyo_spline_reconstruction[,2])
 
-x <- TanCyo_spline_coefficients[2:39]
+TanCyo_adjusted_coefficients <- TanCyo_spline_coefficients[2:39]
 print(TanCyo_spline_coefficients[21])
-x[20] <- x[20]+1
+TanCyo_adjusted_coefficients[20] <- TanCyo_adjusted_coefficients[20]+1
 
-test2 <- cbind(300:700, predict(bspline_matrix_bSpline, coef = x))
-plot(300:700, test2[,2])
+TanCyo_adjusted_coefficients <- cbind(300:700, predict(bspline_matrix_bSpline, coef = TanCyo_adjusted_coefficients))
+plot(300:700, TanCyo_adjusted_coefficients[,2])
 
 
 par(mfrow=c(1,2))
-plot(300:700, test[,2], pch = 19, main = "TanCyo Base Coef.")
-plot(300:700, test2[,2], pch = 19, main = "TanCyo Adjusted Coef.")
+plot(300:700, TanCyo_spline_reconstruction[,2], pch = 19, main = "TanCyo Base Coef.")
+plot(300:700, TanCyo_adjusted_coefficients[,2], pch = 19, main = "TanCyo Adjusted Coef.")
 par(mfrow=c(1,1))
 
-y <- cbind(predict(bspline_matrix_bSpline, coef = as.numeric(c(TanCyo_spline_coefficients[2:39]))),predict(bspline_matrix_bSpline, coef = x))
-y <- cbind(300:700,y)
+spline_coef_comparison <- cbind(predict(bspline_matrix_bSpline, coef = (c(TanCyo_spline_coefficients[2:39]))), c(TanCyo_adjusted_coefficients[,2]))
+spline_coef_comparison <- cbind(300:700, spline_coef_comparison)
 
 ```
 I do not think the basis matrix or the spline coefficients have any inherit biological information.
@@ -1162,3 +1164,20 @@ I do not think the basis matrix or the spline coefficients have any inherit biol
 ### Step 16: Comparing our splines for mean reflectance data and mean spline coefficients
 
 
+
+
+```{r}
+
+
+simulate_spec()
+
+binned_reflectance_vector <- rep(0, 401)
+binned_reflectance_vector[200:209] <- 100
+binned_reflectance_vector
+binned_reflectance_vector <- cbind(300:700, binned_reflectance_vector)
+colnames(binned_reflectance_vector) <- c("wl", "reflectance")
+binned_reflectance_vector <- data.frame(binned_reflectance_vector)
+binned_reflectance_vector
+binned_reflectance_vector <- as.rspec(binned_reflectance_vector)
+spec2rgb(binned_reflectance_vector, alpha = 0.05)
+```
