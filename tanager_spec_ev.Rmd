@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -1222,7 +1222,26 @@ for (i in 1:39){
 random_number <- round(runif(1, min = 1, max = 39), 0)
 mean_spline_coefficients[random_number] == mean(spline_coef_data[,random_number+1])
 
+mean_spline_coefficients_output <- cbind(300:700, predict(bspline_matrix_bSpline, coef = mean_spline_coefficients[2:39]))
 
+colnames(mean_spline_coefficients_output) <- c("wl", "reflectance")
 
+mean_spline_coefficients_output[,2] <- mean_spline_coefficients_output[,2] + mean_spline_coefficients[1]
+
+plot(x = 300:700, y = mean_spline_coefficients_output[,"reflectance"], main = "Mean Spline Coefficients", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", pch = 19, cex = 0.75)
+lines(x = 300:700, y = mean_spline_coefficients_output[,"reflectance"], col = spec2rgb(procspec(as.rspec(mean_spline_coefficients_output), fixneg = "zero")), lwd = 3)
+
+spec2rgb(procspec(as.rspec(mean_reflectance_values), fixneg = "zero"))
+spec2rgb(procspec(as.rspec(mean_spline_coefficients_output), fixneg = "zero"))
+
+par(mfrow=c(1,2))
+
+plot(x = 300:700, y = mean_reflectance_values[,"reflectance"], xlab = "Wavelength (nm)", ylab = "Reflectance (%)", main = "Mean Reflectance Values", pch = 19, cex = 0.75)
+lines(x = 300:700, y = mean_reflectance_values[,"spline_fit"], col = spec2rgb(procspec(as.rspec(mean_reflectance_values), fixneg = "zero")), lwd = 3)
+
+plot(x = 300:700, y = mean_spline_coefficients_output[,"reflectance"], main = "Mean Spline Coefficients", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", pch = 19, cex = 0.75)
+lines(x = 300:700, y = mean_spline_coefficients_output[,"reflectance"], col = spec2rgb(procspec(as.rspec(mean_spline_coefficients_output), fixneg = "zero")), lwd = 3)
+
+par(mfrow=c(1,1))
 
 ```
