@@ -138,7 +138,8 @@ length(names(tanData_filtered[-1])) == length(tanager_species)
 
 ### Step 4: Fitting Cubic Splines to the Tanager Reflectance and Log-Transformed Reflectance Data
 
-Website that explains what splines are: https://community.jmp.com/t5/JMPer-Cable/Understanding-cubic-splines/ba-p/39511
+Website that explains what splines are: 
+https://community.jmp.com/t5/JMPer-Cable/Understanding-cubic-splines/ba-p/39511
 
 ```{r, message=FALSE, warning=FALSE}
 ### Step 3: Fitting Cubic Splines to Tanager reflectance data
@@ -1243,5 +1244,169 @@ plot(x = 300:700, y = mean_spline_coefficients_output[,"reflectance"], main = "M
 lines(x = 300:700, y = mean_spline_coefficients_output[,"reflectance"], col = spec2rgb(procspec(as.rspec(mean_spline_coefficients_output), fixneg = "zero")), lwd = 3)
 
 par(mfrow=c(1,1))
+
+```
+
+
+
+### Step 17: Plotting basis functions
+
+What do the basis functions mean? Do they have the same wavelength width? How do they relate to the basis matrix? How are they represented?
+
+Reference: https://math.stackexchange.com/questions/699113/what-is-the-relationship-between-cubic-b-splines-and-cubic-splines
+
+#### Plotting the basis functions
+```{r}
+
+basis_functions <- matrix(bspline_matrix_bSpline, nrow = 401, ncol = 38)
+
+
+plot(x = 300:700, y = basis_functions[,1], ylim = c(0,1), pch = 19, col = "white")
+for (i in 1:38){
+  x <- i
+  lines(x = 300:700, y = basis_functions[,x], lwd = 3, col = i)
+}
+
+```
+
+
+Why are the basis functions not equivalent in size, and why does the last basis function look completely different from the other basis functions?
+
+
+```{r}
+
+basis_function_width <- NULL
+
+for (i in 1:38){
+  
+  x <- i
+  
+  basis_function <- c(bspline_matrix_bSpline[,x])
+  
+  basis_function[basis_function == 0] <- NA
+  
+  print(length(na.omit(basis_function)))
+  
+  basis_function_width[i] <- length(na.omit(basis_function))
+
+}
+
+
+plot(x = 1:38, y = basis_function_width, main = "Basis Function Widths", col = "red", pch = 19, ylab = "Wavelength Width (nm)", xlab = "Basis Function")
+
+
+
+z <- bSpline(300:700, df = 38, degree = 0)
+wavelength <- NULL
+basis_function_value <- NULL
+for (i in 1:38){
+  
+  x <- i
+  
+  basis_function <- c(z[,x])
+  
+  basis_function <- cbind(300:700, basis_function)
+  
+  basis_function[basis_function == 0] <- NA
+  
+  print(length(na.omit(basis_function)))
+  
+  basis_function <- (na.omit(basis_function))
+  
+  wavelength <- c(wavelength, basis_function[,1])
+  
+  basis_function_value <- c(basis_function_value, basis_function[,2])
+  
+}
+
+plot(z)
+```
+Why there are no values from 300:311 is still unknown. Plausible answer is that the basis functions start at the first internal knot and not the first boundary knot.
+
+Reference: Yadav et al. 2020 ("A Review on XIGA method for computational fracture mechanics applications")
+
+```{r}
+y <- cbind(wavelength, basis_function_value)
+
+y[y == 0] <- NA
+
+y <- na.omit(y)
+
+y
+
+
+for (i in 1:401){
+  
+  x <- i
+  
+  bspline_matrix_bSpline[x,]
+  
+}
+
+
+```
+
+
+
+#### How do the basis functions change depending on the spline coefficients?
+
+```{r}
+
+scalar_values <- c(-0.01, 0, 0.01, 0.1, 1, 2)
+
+length(scalar_values)
+
+for (i in 1:length(scalar_values)){
+  
+  x <- matrix(rep(scalar_values[i], 38), nrow = 38, ncol = 1)
+  
+  warped_basis_functions <- c(basis_functions %*% x)
+  
+  print(warped_basis_functions)
+  
+  plot(x = 300:700, warped_basis_functions, main = paste("Spline Coefficients = ", scalar_values[i], sep = ''))
+  
+}
+
+for (i in 1:401){
+  x <- i
+  print(sum(basis_functions[x,]))
+  
+}
+
+```
+Each row (13+) has a sum of 1. Why do the previous rows not sum to 1, especially when there appears to be symmetry within the basis functions? Why do the columns sum to 1?
+
+Spline coefficients act as scalar values to warp the magnitude of each point on the basis function.
+
+
+
+### Step 18: Showing how the spline coefficients and basis matrix works
+
+```{r}
+
+
+TanCya <- spline_results[["TanCya"]]
+
+TanCya_spline_coef <- TanCya$reflectance_coef
+
+for (i in 2:39){
+  
+  x <- i
+  
+  sequence <- 2:i
+  
+  y <- i-1
+  
+  spline_coef_subset <- matrix(TanCya_spline_coef[sequence])
+  
+  basis_matrix_subset <- matrix(bspline_matrix_bSpline[,(1:y)], nrow = 401, ncol = y)
+  
+  spline_recon_subset <- basis_matrix_subset %*% spline_coef_subset
+  
+  plot(x = 300:700, y = spline_recon_subset + TanCya_spline_coef[1], ylim = c(0, 75), pch = 19, col = TanCya$reflectance_rgb, main = paste("Spline Coefficient =<", i-1), ylab = "Reflectance (%)", xlab = "Wavelength (nm)")
+  
+}
+
 
 ```
