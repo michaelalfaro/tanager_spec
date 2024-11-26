@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -1408,5 +1408,76 @@ for (i in 2:39){
   
 }
 
+
+```
+
+
+### Step 19: Fitting cubic functions to spline data
+
+This chunk of code is to confirm how the splines work. Current idea of how the math works. For some domain x (wavelength: 300:700), we create a series of $k$ basis functions ($F_k(x)$) that can be transformed by spline coefficients ($c_k$). Thus, each point (x) can be defined as follows: $N(x) = \sum_{n=1}^k c_k*F_k(x)$. The output of the basis function transformation will create a piecewise polynomial of cubic functions.
+
+Here, we are going to test/show that this is the case using the TanCyo data.
+
+```{r}
+
+# We extract out the data used in the first knot (approximately 11 nm)
+basis_function_spline1 <- matrix(c(bspline_matrix_bSpline[1:12,]), nrow = 12, ncol = 38)
+
+# We extract our spline coefficients from TanCyo (ignoring the intercept coefficient)
+TanCyo_spline_coefficients <- matrix(TanCyo$reflectance_coef[2:39], ncol = 1)
+
+# We multiply our matrices to get our predicted values
+TanCyo_spline1 <- basis_function_spline1 %*% TanCyo_spline_coefficients
+
+# We add our intercept coefficient to our predicted values
+TanCyo_spline1 <- TanCyo_spline1 + TanCyo$reflectance_coef[1]
+
+# Plotting to verify code ran correctly
+plot(x = 300:311, y = c(TanCyo_spline1), main = "TanCyo Spline 1", pch = 19, col = TanCyo$reflectance_rgb, xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+
+# Wavelength subset
+wavelength_subset1 <- 300:311
+
+# Fitting a cubic function to our predicted values
+lm(c(TanCyo_spline1) ~ wavelength_subset1 + I(wavelength_subset1^2) + I(wavelength_subset1^3))
+
+# Plotting
+plot(x = 300:311, y = c(TanCyo_spline1), main = "TanCyo Spline 1", pch = 19, col = TanCyo$reflectance_rgb, xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+lines(x = 300:311, y = predict(lm(c(TanCyo_spline1) ~ wavelength_subset1 + I(wavelength_subset1^2) + I(wavelength_subset1^3))), col = "yellow")
+
+# Repeat the process with the second spline for TanCyo
+
+basis_function_spline2 <- matrix(c(bspline_matrix_bSpline[13:23,]), nrow = 11, ncol = 38)
+TanCyo_spline2 <- basis_function_spline2 %*% TanCyo_spline_coefficients
+TanCyo_spline2 <- TanCyo_spline2 + TanCyo$reflectance_coef[1]
+wavelength_subset2 <- 312:322
+lm(c(TanCyo_spline2) ~ wavelength_subset2 + I(wavelength_subset2^2) + I(wavelength_subset2^3))
+plot(x = 312:322, y = c(TanCyo_spline2), main = "TanCyo Spline 2", pch = 19, col = TanCyo$reflectance_rgb, xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+lines(x = 312:322, y = predict(lm(c(TanCyo_spline2) ~ wavelength_subset + I(wavelength_subset^2) + I(wavelength_subset^3))), col = "yellow")
+
+
+# Combined plot
+
+plot(300:322, y = c(c(TanCyo_spline1), c(TanCyo_spline2)), main = "TanCyo Splines 1 & 2", col = TanCyo$reflectance_rgb, xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+lines(x = 300:322, y = c(predict(lm(c(TanCyo_spline1) ~ wavelength_subset1 + I(wavelength_subset1^2) + I(wavelength_subset1^3))), predict(lm(c(TanCyo_spline2) ~ wavelength_subset2 + I(wavelength_subset2^2) + I(wavelength_subset2^3)))), col = "yellow")
+lines(x = 300:311, y = predict(lm(c(TanCyo_spline1) ~ wavelength_subset1 + I(wavelength_subset1^2) + I(wavelength_subset1^3))), col = "red")
+lines(x = 312:322, y = predict(lm(c(TanCyo_spline2) ~ wavelength_subset2 + I(wavelength_subset2^2) + I(wavelength_subset2^3))), col = "blue")
+abline(v = as.numeric(TanCyo$internal_knots[1]), col = "yellowgreen", lty = 2)
+
+
+# Plotting side-by-side with actual TanCyo data
+
+par(mfrow=c(1,2))
+
+plot(300:322, y = c(c(TanCyo_spline1), c(TanCyo_spline2)), main = "TanCyo Splines 1 & 2", col = TanCyo$reflectance_rgb, xlab = "Wavelength (nm)", ylab = "Reflectance (%)", pch = 19)
+lines(x = 300:322, y = c(predict(lm(c(TanCyo_spline1) ~ wavelength_subset1 + I(wavelength_subset1^2) + I(wavelength_subset1^3))), predict(lm(c(TanCyo_spline2) ~ wavelength_subset2 + I(wavelength_subset2^2) + I(wavelength_subset2^3)))), col = "yellow")
+lines(x = 300:311, y = predict(lm(c(TanCyo_spline1) ~ wavelength_subset1 + I(wavelength_subset1^2) + I(wavelength_subset1^3))), col = "red")
+lines(x = 312:322, y = predict(lm(c(TanCyo_spline2) ~ wavelength_subset2 + I(wavelength_subset2^2) + I(wavelength_subset2^3))), col = "blue")
+abline(v = as.numeric(TanCyo$internal_knots[1]), col = "yellowgreen", lty = 2)
+
+plot(x = 300:322, y = predict(TanCyo$reflectance_spline_fit)[1:23], col = TanCyo$reflectance_rgb, pch = 19, main = "TanCyo Data")
+abline(v = as.numeric(TanCyo$internal_knots[1]), col = "yellowgreen", lty = 2)
+
+par(mfrow=c(1,1))
 
 ```
