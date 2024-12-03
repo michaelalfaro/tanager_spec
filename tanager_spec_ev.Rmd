@@ -919,11 +919,46 @@ write_tsv(spline_coef_data, file = "spline_coefficients_BEAST.txt")
 
 ```
 
+### Step 11: Summary Statistics for the Spline Coefficients
+
+In this chunk, we want to see whether the spline coefficients show similar levels of variation to the wavelength bins from Step 9. Although spline coefficients are not exclusive representations of a singular 10 nm wavelength bin, but each spline coefficient has more weight on a particular bin over the other bins that the coefficient locally supports.
+
+```{r}
+
+spline_coefficients <- NULL
+
+spline_coefficient_names <- NULL
+
+for (i in 2:40){
+  
+  x <- i
+  
+  coefficients <- c(spline_coef_data[,x])
+  
+  spline_coefficients <- c(spline_coefficients, coefficients)
+  
+  names <- rep((0:38)[i-1], 51)
+  
+  spline_coefficient_names <- c(spline_coefficient_names, names)
+  
+}
+
+spline_coefficients <- cbind(spline_coefficients, spline_coefficient_names)
+
+spline_coefficients <- data.frame(spline_coefficients)
+
+spline_coefficients$spline_coefficients <- as.numeric(spline_coefficients$spline_coefficients)
+
+colnames(spline_coefficients) <- c("coefficients","coefficient_names")
+
+boxplot(spline_coefficients$coefficients ~ spline_coefficients$coefficient_names, col = color_for_plots_V1, label = c(rep(as.character(98), 39)), main = "Summary Statistics for Thraupidae Spline Coefficients (51 Species)", xlab = "Spline Coefficients", ylab = "Value")
+
+```
 
 
-# Step 11: OUTLINING BEAST AND TRACER PROCESS
+# Step 12: OUTLINING BEAST AND TRACER PROCESS
 
-# Step 12: Analyzing diffusion rates of spline coefficients
+# Step 13: Analyzing diffusion rates of spline coefficients
 
 ```{r}
 
@@ -983,7 +1018,7 @@ str(coefficient_diffusion_rates)
 
 ```
 
-# Step 13: Reconstucting splines (methods)
+# Step 14: Reconstucting splines (methods)
 
 One of the main points of reconstructing splines is that we need to do it without the predictive power of a generalized least squares model, which is how we did it in Step 5. This is due to the fact that when we allow our coefficients to diffuse in BEAST for an ancestral state reconstruction (ASR), the only things that we have to reconstruct our diffused splines will just be diffused coefficients and the basis that we are working with (300-700 nm). Below, I will use a case study, using TanCyo (Tangara cyanotis) to show how we can construct splines for a species without the need for a least squares model.
 
@@ -1128,7 +1163,7 @@ spec2rgb(procspec(as.rspec(coef_spline_reconstruction_plusintercept), fixneg = "
 Thus, we have shown we have accurately recreated the spline from our gls model and can produce identical colors to that of the original data just from the spline coefficients for a species and by using a basis for the trait data.
 
 
-### Step 14: What do the coefficients mean?
+### Step 15: What do the coefficients mean?
 
 In the last step, we were able to reconstruct what the splines were through the use of a basis (wavelengths from 300-700 nm) and spline coefficients. We were able to deduce that the intercept was the key component to maintaining the biological meaning to our splines if ran through BEAST. Here we attempt to identify the function of the different spline coefficients through the case study of TanCyo. 
 
@@ -1155,7 +1190,7 @@ The real question at this stage is to identify what the basis matrix represents 
 
 
 
-### Step 15: What do spline coefficients do? What does the basis matrix mean?
+### Step 16: What do spline coefficients do? What does the basis matrix mean?
 ```{r}
 
 
@@ -1185,7 +1220,7 @@ spline_coef_comparison <- cbind(300:700, spline_coef_comparison)
 ```
 I do not think the basis matrix or the spline coefficients have any inherit biological information.
 
-### Step 16: Comparing our splines for mean reflectance data and mean spline coefficients
+### Step 17: Comparing our splines for mean reflectance data and mean spline coefficients
 
 ```{r}
 
@@ -1249,7 +1284,7 @@ par(mfrow=c(1,1))
 
 
 
-### Step 17: Plotting basis functions
+### Step 18: Plotting basis functions
 
 What do the basis functions mean? Do they have the same wavelength width? How do they relate to the basis matrix? How are they represented?
 
@@ -1381,7 +1416,7 @@ Spline coefficients act as scalar values to warp the magnitude of each point on 
 
 
 
-### Step 18: Showing how the spline coefficients and basis matrix works
+### Step 19: Showing how the spline coefficients and basis matrix works
 
 ```{r}
 
@@ -1412,7 +1447,7 @@ for (i in 2:39){
 ```
 
 
-### Step 19: Fitting cubic functions to spline data
+### Step 20: Fitting cubic functions to spline data
 
 This chunk of code is to confirm how the splines work. Current idea of how the math works. For some domain x (wavelength: 300:700), we create a series of $k$ basis functions ($F_k(x)$) that can be transformed by spline coefficients ($c_k$). Thus, each point (x) can be defined as follows: $N(x) = \sum_{n=1}^k c_k*F_k(x)$. The output of the basis function transformation will create a piecewise polynomial of cubic functions.
 
@@ -1453,7 +1488,7 @@ TanCyo_spline2 <- TanCyo_spline2 + TanCyo$reflectance_coef[1]
 wavelength_subset2 <- 312:322
 lm(c(TanCyo_spline2) ~ wavelength_subset2 + I(wavelength_subset2^2) + I(wavelength_subset2^3))
 plot(x = 312:322, y = c(TanCyo_spline2), main = "TanCyo Spline 2", pch = 19, col = TanCyo$reflectance_rgb, xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
-lines(x = 312:322, y = predict(lm(c(TanCyo_spline2) ~ wavelength_subset + I(wavelength_subset^2) + I(wavelength_subset^3))), col = "yellow")
+lines(x = 312:322, y = predict(lm(c(TanCyo_spline2) ~ wavelength_subset2 + I(wavelength_subset2^2) + I(wavelength_subset2^3))), col = "yellow")
 
 
 # Combined plot
@@ -1479,5 +1514,50 @@ plot(x = 300:322, y = predict(TanCyo$reflectance_spline_fit)[1:23], col = TanCyo
 abline(v = as.numeric(TanCyo$internal_knots[1]), col = "yellowgreen", lty = 2)
 
 par(mfrow=c(1,1))
+
+```
+
+
+### Step 21: General plots for presentations
+
+#### Knot placements
+
+```{r}
+
+internal_knots <- TanCyo$internal_knots
+
+plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = "white", main = "TanCyo Crown Reflectance", xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+for (i in 1:length(internal_knots)){
+  
+  abline(v = internal_knots[i], col = "lightgreen")
+  
+}
+```
+
+
+#### Loop to gather cubic polynomial coefficients for the plot
+
+```{r}
+
+basis_matrix_with_wl <- cbind(tanData_filtered$wl, bspline_matrix_bSpline)
+
+# need to isolate what rows are within each knot wl bin
+# need to find which spline coefficients are applicable to each basis function
+## 
+
+basis_matrix_with_wl <- data.frame(basis_matrix_with_wl)
+
+if (i == 1) {
+for (i in 1:length(internal_knots)){
+
+sequence <- 300:internal_knots[i]
+
+print(tail(sequence))
+}
+else {
+#x <- basis_matrix_with_wl %>% filter(V1 == sequence)
+}
+}
+
 
 ```
