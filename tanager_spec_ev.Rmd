@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -1517,6 +1517,27 @@ par(mfrow=c(1,1))
 
 ```
 
+Here we add a for loop to do this for all cubic polynomials fit to our data
+
+```
+
+
+x <- 300:700
+y1 = z$coefficients[4]*(x^3) + z$coefficients[3]*(x^2) + z$coefficients[2]*(x) + z$coefficients[1]
+
+plot(x = 300:700, y = y1)
+
+
+
+
+
+
+
+
+
+
+```
+
 
 ### Step 21: General plots for presentations
 
@@ -1533,11 +1554,29 @@ for (i in 1:length(internal_knots)){
   
 }
 ```
+#### Knot placements with data
+
+
+```{r}
+
+
+plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = as.character(TanCyo$reflectance_rgb), main = "TanCyo Crown Reflectance", xlab = "Wavelength (nm)", ylab = "Reflectance (%)")
+for (i in 1:length(internal_knots)){
+  
+  abline(v = internal_knots[i], col = "lightgreen")
+  
+}
+
+
+
+
+```
+
 
 
 #### Loop to gather cubic polynomial coefficients for the plot
 
-```{r}
+```
 
 basis_matrix_with_wl <- cbind(tanData_filtered$wl, bspline_matrix_bSpline)
 
@@ -1561,3 +1600,121 @@ else {
 
 
 ```
+
+
+### Step 22: Extracting RGB values from hex code for BEAST
+
+
+```{r}
+
+tan_rgb_data <- NULL
+
+red <- NULL
+blue <- NULL
+green <- NULL
+
+for (i in 1:51){
+  
+  y <- i
+  
+  x <- as.character(names(spline_results)[i])
+  
+  x <- spline_results[[x]]
+  
+  x <- x$reflectance_rgb
+  
+  x <- col2rgb(x)
+  
+  red[i] <- x[1]
+  
+  green[i] <- x[2]
+    
+  blue[i] <- x[3]
+
+}
+
+tan_rgb_data <- rbind(red, green)
+tan_rgb_data <- rbind(tan_rgb_data, blue)
+
+tan_rgb_data <- t(tan_rgb_data)
+
+tan_rgb_data <- cbind(c(as.character(names(spline_results))), tan_rgb_data)
+
+colnames(tan_rgb_data) <- c("species", "red", "green", "blue")
+
+tan_rgb_data <- data.frame(tan_rgb_data)
+
+write_tsv(tan_rgb_data, "tanager_rgb_data.txt")
+
+
+for (i in 1:51){
+  
+  print(which(tanagerTree$tip.label[i] == c((tan_rgb_data$species))))
+
+  
+  
+}
+
+name.check(tanagerTree, tan_rgb_data)
+
+
+```
+
+
+### Loading Root State Spline Coefficient Distributions from BEAST Output
+
+Output from 12.2.24
+
+Also note: Remove curly brackets from spline coefficients in text editor
+
+```{r}
+
+root_state_coefficient_output <- read.delim("C:/Users/proto/Box/BEAST Output/Spline_XML_Output_12.9.24/test.log", comment.char="#")
+
+root_state_coefficient_distributions <- strsplit(root_state_coefficient_output$spline_coefficients_BEAST, split = ",")
+
+BEAST_coefficient_extraction <- function(output_data, ){
+  
+  
+
+for (i in 1:dim(output_data)[1]){
+  
+  x <- root_state_coefficient_distributions[i]
+  
+  
+  }
+}
+
+```
+
+### Basis matrix extraction
+
+```{r}
+
+for (i in 1:38){
+  
+  x <- i
+  
+  x <- bspline_matrix_bSpline[,x]
+  
+  x <- as.character(x)
+  
+  y <- paste("<attr id=basis.matrix.col.", i, sep = '')
+  
+  y <- paste(y, "value = ")
+  
+  x <- paste(x, sep = " ")
+  
+  y <- paste(y, x)
+  
+  
+}
+
+
+y
+
+```
+
+
+
+
