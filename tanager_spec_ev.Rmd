@@ -32,10 +32,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +81,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -1541,6 +1541,45 @@ plot(x = 300:700, y = y1)
 
 ### Step 21: General plots for presentations
 
+#### Colorful tanager plots
+
+```{r}
+
+plot(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyc))), lwd = 5, col = as.character(spec2rgb(procspec(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyc))), fixneg = "zero"))), main = expression(italic("Tangara cyanocephala")))
+
+plot(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyv))), lwd = 5, col = as.character(spec2rgb(procspec(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyv))), fixneg = "zero"))), main = expression(italic("Tangara cyanoventris")))
+
+
+plot(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyc))), lwd = 5, col = as.character(spec2rgb(procspec(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyv))), fixneg = "zero"))))
+for (i in 1:length(internal_knots)){
+  
+  abline(v = internal_knots[i], col = "orange")
+  
+}
+
+internal_knots[12:16]
+
+TanCyc_subset <- tanData_filtered[133:180, c("wl", "TanCyc")]
+
+as.character(spec2rgb(procspec(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyc))), fixneg = "zero")))
+
+plot(x = min(TanCyc_subset$wl):max(TanCyc_subset$wl), y = TanCyc_subset$TanCyc, col = "white", ylab = "Reflectance (%)", xlab = "Wavelength (nm)", main = expression(italic("Tangara cyanocephala")))
+lines(x = min(TanCyc_subset$wl):max(TanCyc_subset$wl), y = TanCyc_subset$TanCyc, col = "#4585AAFF", lwd = 5)
+
+
+
+plot(x = min(TanCyc_subset$wl):max(TanCyc_subset$wl), y = TanCyc_subset$TanCyc, col = "white", ylab = "Reflectance (%)", xlab = "Wavelength (nm)", main = expression(italic("Tangara cyanocephala")))
+lines(x = min(TanCyc_subset$wl):max(TanCyc_subset$wl), y = TanCyc_subset$TanCyc, col = "#4585AAFF", lwd = 5)
+for (i in 1:length(internal_knots)){
+  
+  abline(v = internal_knots[i], col = "orange")
+  
+}
+
+```
+
+
+
 #### Knot placements
 
 ```{r}
@@ -1553,6 +1592,7 @@ for (i in 1:length(internal_knots)){
   abline(v = internal_knots[i], col = "lightgreen")
   
 }
+
 ```
 #### Knot placements with data
 
