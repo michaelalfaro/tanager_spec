@@ -22,6 +22,11 @@ library(gridExtra)
 library(grid)
 library(nlme)
 library(splines2)
+library(evobiR)
+library(mvMORPH)
+library(readxl)
+library(png)
+source("annotatedTreeReader.R")
 ```
 
 
@@ -32,10 +37,10 @@ library(splines2)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  #ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+  ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  # ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -81,10 +86,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-#treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+# treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -1545,6 +1550,8 @@ plot(x = 300:700, y = y1)
 
 ```{r}
 
+internal_knots <- TanCyo$internal_knots
+
 plot(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyc))), lwd = 5, col = as.character(spec2rgb(procspec(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyc))), fixneg = "zero"))), main = expression(italic("Tangara cyanocephala")))
 
 plot(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyv))), lwd = 5, col = as.character(spec2rgb(procspec(as.rspec(data.frame(cbind(tanData_filtered$wl, tanData_filtered$TanCyv))), fixneg = "zero"))), main = expression(italic("Tangara cyanoventris")))
@@ -1558,6 +1565,8 @@ for (i in 1:length(internal_knots)){
 }
 
 internal_knots[12:16]
+
+internal_knots <- TanCyo$internal_knots
 
 TanCyc_subset <- tanData_filtered[133:180, c("wl", "TanCyc")]
 
@@ -1642,6 +1651,399 @@ else {
 ```
 
 
+#### Basic non-empirical example
+
+
+```{r}
+
+# Data and basis matrix objects
+data <- c(2,1,1,2,3,3,2,1,1,2,5,5,6,5,5,6,8,5,6,7,7,6,6,5,5,8,8,9,8,8,7)
+b.matrix <- bSpline(10:40, df = 6)
+
+# Plotting data
+plot(x = 10:40, y = data, ylab = "", xlab = "", pch = 19)
+
+# GLS model of our splines & data
+gls.model <- gls(data ~ bs(10:40, df = 6), correlation = corAR1(form = ~1))
+
+# Plotting data with spline line
+plot.new()
+plot(x = 10:40, y = data, ylab = "", xlab = "", pch = 19)
+lines(x = 10:40, y = predict(gls.model))
+
+# Plotting basis functions
+plot(b.matrix, xlab = "")
+
+# Plotting basis functions scaled to data
+plot(b.matrix, xlab = "", ylim = c(0,9))
+
+# Gathering knot placements
+spline.attributes <- attributes(bs(10:40, df = 6))
+
+internal.knots <- spline.attributes$knots
+
+boundary.knots <- spline.attributes$Boundary.knots
+
+# Plotting knot locations
+plot(x = 10:40, y = data, ylab = "", xlab = "", pch = 19, col = "white")
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+
+# Plotting knot locations with basis functions
+plot(b.matrix, xlab = "")
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+
+# Plotting knot locations on data
+plot(x = 10:40, y = data, ylab = "", xlab = "", pch = 19, col = "black")
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+
+# Plotting basis matrix without a basis function in first knot interval
+b.matrix.wo1 <- b.matrix[c(7:31),]
+plot(b.matrix, xlab = "", col = "white")
+for (i in 1:ncol(b.matrix.wo1)){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,6),b.matrix.wo1[,x]), col = i)
+}
+
+```
+
+##### Spline 1
+```{r}
+# We extract out the data used in the first knot
+b.matrix.spline.1 <- matrix(c(b.matrix[1:8,]), nrow = 8, ncol = 6)
+
+# Extracting spline coefficients
+gls.spline.coef <- round(coef(gls.model))
+
+# We extract our spline coefficients from TanCyo (ignoring the intercept coefficient)
+gls.spline.coef.matrix <- matrix(gls.spline.coef[2:7], ncol = 1)
+
+# We multiply our matrices to get our predicted values
+cubic.spline.1 <- b.matrix.spline.1 %*% gls.spline.coef.matrix
+
+# We add our intercept coefficient to our predicted values
+cubic.spline.1 <- cubic.spline.1 + gls.spline.coef[1]
+
+# Plotting to verify code ran correctly
+plot(x = 10:17, y = c(cubic.spline.1), main = "Spline 1", pch = 19, col = "black", xlab = "", ylab = "")
+
+# x-axis subset
+x1 <- 10:17
+
+# Fitting a cubic function to our predicted values
+cubic.regression.1 <- lm(c(cubic.spline.1) ~ x1 + I(x1^2) + I(x1^3))
+
+# Basis matrix reduction
+b.matrix.wo1 <- b.matrix[c(9:31),]
+
+
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,5))
+for (i in 1:ncol(b.matrix.wo1)){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,8),b.matrix.wo1[,x]), col = i)
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+
+# Plotting with knot placements
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,5))
+for (i in 1:ncol(b.matrix.wo1)){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,8),b.matrix.wo1[,x]), col = i)
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+```
+
+
+##### Spline 2
+```{r}
+# We extract out the data used in the first knot
+b.matrix.spline.2 <- matrix(c(b.matrix[9:16,]), nrow = 8, ncol = 6)
+
+# Extracting spline coefficients
+gls.spline.coef <- round(coef(gls.model))
+
+# We extract our spline coefficients from TanCyo (ignoring the intercept coefficient)
+gls.spline.coef.matrix <- matrix(gls.spline.coef[2:7], ncol = 1)
+
+# We multiply our matrices to get our predicted values
+cubic.spline.2 <- b.matrix.spline.2 %*% gls.spline.coef.matrix
+
+# We add our intercept coefficient to our predicted values
+cubic.spline.2 <- cubic.spline.2 + gls.spline.coef[1]
+
+# Plotting to verify code ran correctly
+plot(x = 18:25, y = c(cubic.spline.2), main = "Spline 2", pch = 19, col = "black", xlab = "", ylab = "")
+
+# x-axis subset
+x2 <- 18:25
+
+# Fitting a cubic function to our predicted values
+cubic.regression.2 <- lm(c(cubic.spline.2) ~ x2 + I(x2^2) + I(x2^3))
+
+# Basis matrix reduction
+b.matrix.wo2 <- b.matrix[c(17:31),]
+
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:ncol(b.matrix.wo2)){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,16),b.matrix.wo2[,x]), col = i)
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l")
+
+
+# Plotting with knot placements
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:ncol(b.matrix.wo2)){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,16),b.matrix.wo2[,x]), col = i)
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l")
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+```
+
+##### Spline 3
+```{r}
+# We extract out the data used in the first knot
+b.matrix.spline.3 <- matrix(c(b.matrix[17:23,]), nrow = 7, ncol = 6)
+
+# Extracting spline coefficients
+gls.spline.coef <- round(coef(gls.model))
+
+# We extract our spline coefficients from TanCyo (ignoring the intercept coefficient)
+gls.spline.coef.matrix <- matrix(gls.spline.coef[2:7], ncol = 1)
+
+# We multiply our matrices to get our predicted values
+cubic.spline.3 <- b.matrix.spline.3 %*% gls.spline.coef.matrix
+
+# We add our intercept coefficient to our predicted values
+cubic.spline.3 <- cubic.spline.3 + gls.spline.coef[1]
+
+# Plotting to verify code ran correctly
+plot(x = 26:32, y = c(cubic.spline.3), main = "Spline 3", pch = 19, col = "black", xlab = "", ylab = "")
+
+# x-axis subset
+x3 <- 26:32
+
+# Fitting a cubic function to our predicted values
+cubic.regression.3 <- lm(c(cubic.spline.3) ~ x3 + I(x3^2) + I(x3^3))
+
+# Basis matrix reduction
+b.matrix.wo3 <- b.matrix[c(25:31),]
+
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:ncol(b.matrix.wo3)){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,24),b.matrix.wo3[,x]), col = i)
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l")
+points(x = 26:32, predict(cubic.regression.3), pch = 19, col = "green3", type = "l")
+
+# Plotting with knot placements
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:ncol(b.matrix.wo3)){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,24),b.matrix.wo3[,x]), col = i)
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l")
+points(x = 26:32, predict(cubic.regression.3), pch = 19, col = "green3", type = "l")
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+```
+
+##### Spline 4
+```{r}
+# We extract out the data used in the first knot
+b.matrix.spline.4 <- matrix(c(b.matrix[24:31,]), nrow = 8, ncol = 6)
+
+# Extracting spline coefficients
+gls.spline.coef <- round(coef(gls.model))
+
+# We extract our spline coefficients from TanCyo (ignoring the intercept coefficient)
+gls.spline.coef.matrix <- matrix(gls.spline.coef[2:7], ncol = 1)
+
+# We multiply our matrices to get our predicted values
+cubic.spline.4 <- b.matrix.spline.4 %*% gls.spline.coef.matrix
+
+# We add our intercept coefficient to our predicted values
+cubic.spline.4 <- cubic.spline.4 + gls.spline.coef[1]
+
+# Plotting to verify code ran correctly
+plot(x = 33:40, y = c(cubic.spline.4), main = "Spline 4", pch = 19, col = "black", xlab = "", ylab = "")
+
+# x-axis subset
+x4 <- 33:40
+
+# Fitting a cubic function to our predicted values
+cubic.regression.4 <- lm(c(cubic.spline.4) ~ x4 + I(x4^2) + I(x4^3))
+
+# Basis matrix reduction can be skipped as there are no more points to plot for each basis function
+
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:6){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,31)), col = "white")
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l")
+points(x = 26:32, predict(cubic.regression.3), pch = 19, col = "green3", type = "l")
+points(x = 33:40, predict(cubic.regression.4), pch = 19, col = "orange3", type = "l")
+
+
+# Plotting with knot placements
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:6){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,31)), col = "white")
+}
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l")
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l")
+points(x = 26:32, predict(cubic.regression.3), pch = 19, col = "green3", type = "l")
+points(x = 33:40, predict(cubic.regression.4), pch = 19, col = "orange3", type = "l")
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+```
+
+##### Connecting splines
+
+```{r}
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:6){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,31)), col = "white")
+}
+lines(x = 10:40, y = c(predict(cubic.regression.1),predict(cubic.regression.2),predict(cubic.regression.3),predict(cubic.regression.4)), col = "gold", lwd = 5)
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l", lwd = 5)
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l", lwd = 5)
+points(x = 26:32, predict(cubic.regression.3), pch = 19, col = "green3", type = "l", lwd = 5)
+points(x = 33:40, predict(cubic.regression.4), pch = 19, col = "orange3", type = "l", lwd = 5)
+
+# Plotting with knot placements
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:6){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,31)), col = "white")
+}
+lines(x = 10:40, y = c(predict(cubic.regression.1),predict(cubic.regression.2),predict(cubic.regression.3),predict(cubic.regression.4)), col = "gold", lwd = 5)
+points(x = 10:17, predict(cubic.regression.1), pch = 19, col = "blue", type = "l", lwd = 5)
+points(x = 18:25, predict(cubic.regression.2), pch = 19, col = "red", type = "l", lwd = 5)
+points(x = 26:32, predict(cubic.regression.3), pch = 19, col = "green3", type = "l", lwd = 5)
+points(x = 33:40, predict(cubic.regression.4), pch = 19, col = "orange3", type = "l", lwd = 5)
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+
+# Plotting just total predicted curve
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:6){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,31)), col = "white")
+}
+lines(x = 10:40, y = c(predict(cubic.regression.1),predict(cubic.regression.2),predict(cubic.regression.3),predict(cubic.regression.4)), col = "gold", lwd = 5)
+
+# Plotting just total predicted curve with knot placements
+plot(b.matrix, xlab = "", col = "white", ylim = c(0,9))
+for (i in 1:6){
+  x <- i
+  lines(x = 10:40, y = c(rep(0,31)), col = "white")
+}
+lines(x = 10:40, y = c(predict(cubic.regression.1),predict(cubic.regression.2),predict(cubic.regression.3),predict(cubic.regression.4)), col = "gold", lwd = 5)
+abline(v = boundary.knots[1], col = "purple4")
+abline(v = boundary.knots[2], col = "purple4")
+abline(v = internal.knots[1], col = "orange2")
+abline(v = internal.knots[2], col = "orange2")
+abline(v = internal.knots[3], col = "orange2")
+
+```
+
+
+#### Visual system plots
+
+```{r}
+
+summer_tanager_reflectance <- read_xlsx("C:\\Users\\proto\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
+
+summer_tanager_reflectance <- summer_tanager_reflectance[12:88]
+
+summer_tanager_reflectance <- t(summer_tanager_reflectance)
+
+summer_tanager_reflectance <- cbind(as.numeric(rownames(summer_tanager_reflectance)), summer_tanager_reflectance)
+
+
+colnames(summer_tanager_reflectance) <- c("wl", "reflectance")
+
+summer_tanager_reflectance <- as.rspec(summer_tanager_reflectance, interp = TRUE, lim = c(300,700))
+
+
+plot(summer_tanager_reflectance)
+
+summer_tanager <- readPNG("C:\\Users\\proto\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\summer_tanager_ventral_11_2024-08-05_13-50-07_-removebg-preview.png")
+
+plot(1:2, type = 'n')
+rasterImage(summer_tanager, xleft = 1, xright = 1.4, ytop = 1.8, ybottom = 1, angle = 0)
+
+human <- vismodel(summer_tanager_reflectance, visual = "cie10")
+human_color <- colspace(human, space = "tri")
+plot(human_color)
+
+starling <- vismodel(summer_tanager_reflectance, visual = "star")
+starling_color <- colspace(starling, space = "tri")
+triplot(starling_color)
+
+fly <- vismodel(summer_tanager_reflectance, visual = "drosophila")
+fly_color <- colspace(fly, space = "tri")
+plot(fly_color)
+
+triplot_points <- rbind(fly_color, human_color)
+triplot_points <- rbind(triplot_points, starling_color)
+
+triplot(triplot_points, col = c("blue", "green","orange"))
+legend(x = "topright",legend = c("fly","human", "starling"), fill = c("blue","green","orange"))
+rasterImage(summer_tanager, xleft = 0.65, xright = 1.65, ytop = 0.7, ybottom = -0.3, angle = 0)
+
+
+triplot(triplot_points, col = c("blue", "green","orange"))
+legend(x = "topright",legend = c("fly","human", "starling"), fill = c("blue","green","orange"))
+rasterImage(summer_tanager, xleft = -1, xright = 1, ytop = 1, ybottom = -1, angle = 0)
+
+
+triplot(triplot_points, col = c("blue", "green","orange"))
+legend(x = "topright",legend = c("fly","human", "starling"), fill = c("blue","green","orange"))
+rasterImage(summer_tanager, xleft = 0.1, xright = 1.2, ytop = 0.65, ybottom = -0.2, angle = 0)
+```
+
+
 ### Step 22: Extracting RGB values from hex code for BEAST
 
 
@@ -1707,25 +2109,110 @@ Output from 12.2.24
 
 Also note: Remove curly brackets from spline coefficients in text editor
 
-```{r}
+```
 
-root_state_coefficient_output <- read.delim("C:/Users/proto/Box/BEAST Output/Spline_XML_Output_12.9.24/test.log", comment.char="#")
+root_state_coefficient_output <- read.delim("C:\\Users\\proto\\Box\\BEAST Output\\Spline_XML_Output_12.9.24\\test - Copy.log", comment.char="#")
 
 root_state_coefficient_distributions <- strsplit(root_state_coefficient_output$spline_coefficients_BEAST, split = ",")
 
-BEAST_coefficient_extraction <- function(output_data, ){
+BEAST_coefficient_extraction <- function(output_data, basis_matrix){
   
-  
+storage <- NULL
+
+distributions_list <- strsplit(output_data$spline_coefficients_BEAST, split = ",")
+
+reflectance_data <- NULL
 
 for (i in 1:dim(output_data)[1]){
   
-  x <- root_state_coefficient_distributions[i]
+  x <- c(distributions_list[[i]])
   
+  storage <- rbind(storage, x)
   
-  }
+  x <- as.numeric(x)
+  
+  coef_matrix <- matrix(x[2:39], nrow = 38, ncol = 1)
+  
+  root_reflectance <- basis_matrix %*% coef_matrix
+  
+  root_reflectance <- root_reflectance + x[1]
+  
+  reflectance_data <- cbind(reflectance_data, root_reflectance)
+  
 }
 
+reflectance_data <- cbind(300:700, reflectance_data)
+
+return(list(storage, reflectance_data))
+
+
+}
+
+
+tanager_spline_asr <- BEAST_coefficient_extraction(root_state_coefficient_output, bspline_matrix_bSpline)
+
+asr_reflectance <- tanager_spline_asr[[2]]
+
+colnames(asr_reflectance) <- c("wl", 1:((dim(asr_reflectance)[2])-1))
+
+asr_reflectance <- procspec(asr_reflectance, fixneg = "zero")
+
+colnames(asr_reflectance) <- c("wl", 1:((dim(asr_reflectance)[2])-1))
+
+str(asr_reflectance)
+
+asr_mean_reflectance <- NULL
+asr_sd_reflectance <- NULL
+
+for (i in 1:((dim(asr_reflectance)[1]))){
+  
+  x <- i
+  
+  asr_wl_reflectance <- unlist(asr_reflectance[x, -1])
+  
+  asr_mean_reflectance[i] <- mean(asr_wl_reflectance)
+       
+  asr_sd_reflectance[i] <- sd(asr_wl_reflectance)
+  
+}
+
+plot(x= 300:700, y = asr_mean_reflectance, pch = 19,)
+
 ```
+
+
+#### Comparing node #/positioning between BEAST and tanagerTree
+
+```{r}
+
+# Taxa order from BEAST. Placed alphabetically rather than leaf node placement
+BEAST_species_order <- c("TanArg","TanArt","TanCal","TanCay","TanChi","TanChr","TanCuc","TanCya","TanCyc","TanCyo","TanCyp","TanCyv","TanDes","TanDow","TanFas","TanFlo","TanFuc","TanGut","TanGyr","TanHei","TanIct","TanIno","TanJoh","TanLab","TanLar","TanLav","TanMex","TanNic","TanNiv","TanPal","TanPar","TanPre","TanPun","TanRue","TanRuf","TanRuu","TanSch","TanSel","TanVar","TanVas","TanVel","TanVir","TanVit","TanXac","TanXag","ThrAbb","ThrCyp","ThrEpi","ThrOrn","ThrPal","ThrSay")
+
+BEAST_species_order <- cbind(1:51, BEAST_species_order)
+
+# Taxa order from tanagerTree. Placed based on the order (bottom to top) of tips of phylogenetic tree
+tree_species_order <- tanagerTree$tip.label
+
+tree_species_order <- cbind(1:51, tree_species_order)
+
+tree_species_order <- data.frame(tree_species_order)
+
+colnames(tree_species_order) <- c("tree_order", "species.2")
+
+tree_species_order <- arrange(tree_species_order, tree_species_order$species.2)
+
+species_order <- cbind(BEAST_species_order, tree_species_order)
+
+species_order <- data.frame(species_order)
+
+colnames(species_order) <- c("BEAST_placement", "species.1", "tree_order", "species.2")
+
+
+
+
+```
+
+
 
 ### Basis matrix extraction
 
@@ -1757,4 +2244,247 @@ y
 
 
 
+
+### mvMORPH ancestral state reconstruction
+
+```{r}
+
+
+# Storage vector
+spline.data.mvgls <- NULL
+
+# Data frame without a species column
+spline.coef.data.mvgls <-spline_coef_data[,-1]
+
+# for loop to turn our data frame into a numeric "vector"
+# You do not want it to be a matrix or a data frame
+for (i in 1:39){
+    x<-i
+    y<-spline.coef.data.mvgls[,x]
+    spline.data.mvgls<-cbind(spline.data.mvgls,y)
+}
+
+# Adds rownames to our data "vector" to assign our coefficients to tip labels
+rownames(spline.data.mvgls) <- names(spline_results)
+
+# Creates a data list for the mvgls function
+data.mvgls <- list(spline.data.mvgls=spline.data.mvgls)
+
+# mvgls model 
+# Formula defined as an intercept only model (no predictor variables)
+fit_mvgls <- mvgls(spline.data.mvgls~1, data = data.mvgls, tree = tanagerTree, model = "BM")
+
+# Ancestral state reconstruction of a mvgls object
+asr.mvgls <- ancestral(fit_mvgls)
+
+# Ancestral state reconstruction (mvgls) as a data frame
+asr.mvgls.df <- data.frame(asr.mvgls)
+
+# Adding coefficient names to columns of ASR (mvgls)
+colnames(asr.mvgls.df) <- coefficient_names[2:40]
+
+# Storage vector
+asr.reflectance.mvgls <- NULL
+
+# for loop plotting all of the reconstructed nodes
+for (i in 1:nrow(asr.mvgls.df)){
+  
+  x <- i
+  
+  node.spline.coef.matrix <- matrix(unlist(c(asr.mvgls.df[x, 2:39])), nrow = 38, ncol = 1)
+  
+  reflectance.storage <- basis_spline_matrix %*% node.spline.coef.matrix
+  
+  reflectance.storage <- c(reflectance.storage)
+  
+  reflectance.storage <- reflectance.storage + asr.mvgls.df[x,1]
+  
+  asr.reflectance.mvgls <- cbind(asr.reflectance.mvgls, reflectance.storage)
+  
+}
+
+colnames(asr.reflectance.mvgls) <- rownames(asr.mvgls)
+
+for (i in 1:ncol(asr.reflectance.mvgls)){
+  
+  x <- i
+  
+  y <- as.character(colnames(asr.reflectance.mvgls)[i])
+  
+  rspec <- cbind(300:700, asr.reflectance.mvgls[,x])
+  
+  colnames(rspec) <- c("wl", "reflectance")
+  
+  rspec <- as.rspec(rspec)
+  
+  plot(rspec, main = paste(y, "ASR"), col = as.character(spec2rgb(procspec(rspec, fixneg = "zero"))), lwd = 5)
+  
+  
+}
+
+
+asr.mvgls
+
+variances.asr.mvgls <- diag(fit_mvgls$sigma$Pinv)
+
+names(variances.asr.mvgls) <- c("Intercept", as.character(1:38))
+
+variance.label <- expression(paste(sigma^{2}))
+# Save each spectra as an image
+# Bar plot of the variance values, make look nice
+
+par(mar= c(5.1,5.1,4.1,2.1))
+barplot(variances.asr.mvgls, col = color_for_plots_V1, ylab = expression(paste("Variance", sep = " ", (sigma^{2}))), xlab = "Coefficients")
+par(mar= c(5.1,4.1,4.1,2.1))
+
+covariance.matrix <- fit_mvgls$sigma$Pinv
+
+correlation.matrix <- cov2cor(covariance.matrix)
+
+correlation.matrix.vector <- NULL
+for (i in 1:39){
+  
+  x <- i
+  
+  storage <- c(correlation.matrix[,x])
+  
+  correlation.matrix.vector <- c(correlation.matrix.vector, storage)
+  
+}
+
+
+c.m.names.x <- rep(coefficient_names[2:40], 39)
+c.m.names.x <- factor(c.m.names.x, ordered = TRUE, levels = c(coefficient_names[2:40]))
+correlation.matrix.heatmap <- cbind(correlation.matrix.vector, c.m.names.x)
+
+c.m.names.y <- NULL
+for (i in 2:40){
+  
+  x <- coefficient_names[i]
+  
+  storage <- rep(x, 39)
+  
+  c.m.names.y <- c(c.m.names.y, storage)
+  
+  
+}
+
+c.m.names.y <- factor(c.m.names.y, ordered = TRUE, levels = c(coefficient_names[2:40]))
+correlation.matrix.heatmap <- cbind(correlation.matrix.heatmap, c.m.names.y)
+
+correlation.matrix.heatmap <- data.frame(correlation.matrix.heatmap)
+
+correlation.matrix.heatmap[,1] <- as.numeric(correlation.matrix.heatmap[,1])
+
+ggplot(data = correlation.matrix.heatmap, aes(fill = correlation.matrix.vector, x = c.m.names.x, y = c.m.names.y)) + geom_tile(show.legend = TRUE) + scale_fill_gradient2(low = "blue", name = "Correlation",high = "orange", mid = "white")
+# Plot the ancestral reflectance at the root, color each segment based on variance 
+
+# Turn covariance matrix into a correlation matrix
+# Visualize the strength of the correlation of the coefficients (heatmap)
+# Create a plot that expresses the correlation 
+
+# Take 1000 trees, extract root coefficients for 100, plot 100 spectra (alpha = 0.25 forexample)
+```
+
+
+
+### BEAST ancestral state reconstruction
+```{r}
+
+load("C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\BEAST.trees.subset.RData")
+
+root_annotator <- function(trees_file, coefficient_names){
+
+  if (class(trees_file) != "multiPhylo"){
+    print("This object is not a multiphylo object!")
+  }
+  
+  else{
+    
+  root.annotations.df <- NULL
+    
+  tree.names <- NULL
+
+  for (i in 1:length(trees_file)){
+  
+    tree.names[i] <- names(trees_file)[i]
+  
+    tree <- trees_file[[i]]
+  
+    root.annotations <- unlist(tree$root.annotation$spline_coefficients_BEAST)
+  
+    root.annotations.df <- rbind(root.annotations.df, root.annotations)
+  
+    }
+
+  root.annotations.df <- data.frame(root.annotations.df)
+
+  rownames(root.annotations.df) <- tree.names
+  
+  colnames(root.annotations.df) <- coefficient_names
+
+  return(root.annotations.df)
+
+}
+}
+
+BEAST.root.asr <- root_annotator(BEAST.trees.subset, coefficient_names[2:40])
+
+head(BEAST.root.asr)
+
+str(BEAST.root.asr)
+
+spline.coef.to.reflectance <- function(spline.coef.matrix, basis_matrix, tree_names){
+
+reflectance.df <- NULL
+
+for (i in 1:dim(spline.coef.matrix)[1]){
+  
+  x <- i
+  
+  spline.coef <- matrix(c(unlist(spline.coef.matrix[x,2:39])), nrow = 38, ncol = 1)
+  
+  reflectance <- basis_matrix %*% spline.coef
+
+  reflectance <- reflectance + spline.coef.matrix[x,1]
+    
+  reflectance.df <- cbind(reflectance.df, reflectance)
+  
+}
+
+reflectance.df <- cbind(300:700, reflectance.df)
+
+reflectance.df <- data.frame(reflectance.df)
+
+colnames(reflectance.df) <- c("wl", tree_names)
+
+return(reflectance.df)
+}
+
+BEAST.root.reflectance <- spline.coef.to.reflectance(BEAST.root.asr, bspline_matrix_bSpline, rownames(BEAST.root.asr))
+
+BEAST.root.reflectance <- as.rspec(BEAST.root.reflectance)
+
+BEAST.root.reflectance <- procspec(BEAST.root.reflectance, fixneg = "zero")
+
+
+plot(x = BEAST.root.reflectance$wl, y = rep(100, 401), ylim = c(0,100), col = "white")
+for (i in 2:101){
+
+  x <- i
+  
+  rspec <- cbind(BEAST.root.reflectance$wl, BEAST.root.reflectance[,x])
+  
+  colnames(rspec) <- c("wl", "reflectance")
+  
+  rgb.color <- spec2rgb(as.rspec(rspec))
+  
+  rgb.color <- alpha(as.character(rgb.color), alpha = 0.25)
+  
+  lines(x = BEAST.root.reflectance$wl, y = BEAST.root.reflectance[,x], col = rgb.color, lwd = 3)
+}
+lines(x = 300:700, y = asr.reflectance.mvgls[,1], col = "black", lwd = 5)
+
+
+```
 
