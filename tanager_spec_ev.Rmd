@@ -919,6 +919,7 @@ str(spline_coef_data)
 
 # Writes a text file of our data frame to use for BEAST
 write_tsv(spline_coef_data, file = "spline_coefficients_BEAST.txt")
+write.delim(spline_coef_data, file = "spline_coefficients_BEAST.txt")
 
 
 
@@ -2238,7 +2239,7 @@ for (i in 1:38){
 }
 
 
-y
+
 
 ```
 
@@ -2389,7 +2390,7 @@ ggplot(data = correlation.matrix.heatmap, aes(fill = correlation.matrix.vector, 
 
 
 ### BEAST ancestral state reconstruction
-```{r}
+```{r, message=FALSE}
 
 load("C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\BEAST.trees.subset.RData")
 
