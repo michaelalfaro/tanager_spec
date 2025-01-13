@@ -40,10 +40,10 @@ library(RFPM)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-  # ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+   ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -89,10 +89,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
-# treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+ treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -2249,9 +2249,9 @@ abline(v = internal.knots[3], col = "orange2")
 
 ```{r}
 
-# summer_tanager_reflectance <- read_xlsx("C:\\Users\\proto\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
+ summer_tanager_reflectance <- read_xlsx("C:\\Users\\proto\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
 
-summer_tanager_reflectance <- read_xlsx("C:\\Users\\batra\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
+#summer_tanager_reflectance <- read_xlsx("C:\\Users\\batra\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
 
 summer_tanager_reflectance <- summer_tanager_reflectance[12:88]* 100
 
@@ -2273,11 +2273,11 @@ plot(summer_tanager_reflectance, col = as.character(spec2rgb(procspec(summer_tan
 
 # summer_tanager <- readPNG("C:\\Users\\proto\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\summer_tanager_ventral_11_2024-08-05_13-50-07_-removebg-preview.png")
 
-summer_tanager <- readPNG("C:\\Users\\batra\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\summer_tanager_ventral_11_2024-08-05_13-50-07_-removebg-preview.png")
+#summer_tanager <- readPNG("C:\\Users\\batra\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\summer_tanager_ventral_11_2024-08-05_13-50-07_-removebg-preview.png")
 
 
 plot(1:2, type = 'n')
-rasterImage(summer_tanager, xleft = 1, xright = 1.4, ytop = 1.8, ybottom = 1, angle = 0)
+#rasterImage(summer_tanager, xleft = 1, xright = 1.4, ytop = 1.8, ybottom = 1, angle = 0)
 
 human <- vismodel(summer_tanager_reflectance, visual = "cie10")
 human_color <- colspace(human, space = "tri")
@@ -2312,17 +2312,17 @@ mtext("starling", side = 1 , adj = 0.55, padj = -8.9)
 triplot_points <- rbind(triplot_points, fly_color)
 triplot(triplot_points, col = c("#E54C39FF", "#FF0066","blue"))
 legend(x = "topright",legend = c("human", "starling", "fly"), fill = c("#E54C39FF", "#FF0066","blue"))
-rasterImage(summer_tanager, xleft = 0.65, xright = 1.65, ytop = 0.7, ybottom = -0.3, angle = 0)
+#rasterImage(summer_tanager, xleft = 0.65, xright = 1.65, ytop = 0.7, ybottom = -0.3, angle = 0)
 
 
 triplot(triplot_points, col = c("#E54C39FF", "#FF0066","blue"))
 legend(x = "topright",legend = c("human", "starling", "fly"), fill = c("#E54C39FF", "#FF0066","blue"))
-rasterImage(summer_tanager, xleft = -1, xright = 1, ytop = 1, ybottom = -1, angle = 0)
+#rasterImage(summer_tanager, xleft = -1, xright = 1, ytop = 1, ybottom = -1, angle = 0)
 
 
 triplot(triplot_points, col = c("#E54C39FF", "#FF0066","blue"))
 legend(x = "topright",legend = c("human", "starling", "fly"), fill = c("#E54C39FF", "#FF0066","blue"))
-rasterImage(summer_tanager, xleft = 0.1, xright = 1.2, ytop = 0.65, ybottom = -0.2, angle = 0)
+#rasterImage(summer_tanager, xleft = 0.1, xright = 1.2, ytop = 0.65, ybottom = -0.2, angle = 0)
 ```
 
 
@@ -3154,7 +3154,7 @@ ggplot(data = variance.wl, aes(x = wl, y = Variance, col = Variance)) + geom_poi
 ```
 
 ### BEAST ancestral state reconstruction
-```{r, message=FALSE}
+```{message=FALSE}
 
 # load("C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\BEAST.trees.subset.RData")
 
