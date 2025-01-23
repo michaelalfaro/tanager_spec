@@ -30,6 +30,7 @@ library(caroline)
 source("annotatedTreeReader.R")
 library(ggimage)
 library(RFPM)
+library(skimr)
 ```
 
 
@@ -40,10 +41,10 @@ library(RFPM)
 
 suppressMessages({
   # File pathway linking to the reflectance data for Thraupidae specimens on laptop
-   ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
+   # ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  #ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+  ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -89,10 +90,10 @@ get the tanagers only
 ```{r, message=FALSE, warning=FALSE}
 
 # File pathway linking to the Thraupidae tree on laptop
- treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+ # treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-#treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -1462,6 +1463,141 @@ for (i in 2:39){
 ```
 
 
+#### Are spline coefficients correlated to reflectance?
+
+The answer should be yes, as larger spline coefficient values produce higher reflectance values. What this coding chunk does is test to see if the similar reflectance values are predicted by similar coefficient values.
+
+```{r}
+
+# Determining what reflectance value has the most weight from each basis function
+
+
+basis.function.wl <- NULL
+for (i in 1:38){
+  
+  x <- i
+  
+  basis.function <- data.frame(as.matrix(bspline_matrix_bSpline[,x], ncol = 1))
+  
+  colnames(basis.function) <- "basis_function"
+  
+  basis.function$basis_function[basis.function$basis_function == 0] <- NA
+  
+  basis.function <- na.omit(basis.function)
+
+  basis.function$basis_function[basis.function$basis_function < max(basis.function$basis_function)] <- NA
+  
+  basis.function <- na.omit(basis.function)
+  
+  print(rownames(basis.function))
+  
+  basis.function.wl[i] <- as.numeric(rownames(basis.function)) + 299
+  
+}
+
+basis.function.wl <- unlist(basis.function.wl)
+
+basis.function.wl
+
+
+spline.coef.and.refl <- NULL
+for (species_name in names(spline_results)){
+  
+  reflectance <- tanData_filtered_wowl[species_name,]
+  
+  reflectance <- reflectance[c(basis.function.wl-299)]
+  
+  spline.coef <- spline_results[[species_name]]$reflectance_spline_fit
+  
+  spline.coef <- coef(spline.coef)[2:39]
+  
+  placeholder <- cbind(reflectance, spline.coef)
+  
+  spline.coef.and.refl <- cbind(spline.coef.and.refl, placeholder)
+  
+}
+
+spline.coef.and.refl <- data.frame(cbind(basis.function.wl, spline.coef.and.refl))
+
+namesforcolumns <- NULL
+for (species_name in names(spline_results)){
+  
+  namesforcolumns <- c(namesforcolumns, species_name, paste(species_name, ".coefficients", sep = ''))
+  
+}
+
+head(namesforcolumns)
+
+namesforcolumns <- c("wl", namesforcolumns)
+
+colnames(spline.coef.and.refl) <- namesforcolumns
+
+
+
+par(mfrow=c(1,2))
+plot(x = basis.function.wl, y = spline.coef.and.refl$TanCyo, pch = 19)
+
+plot(x = 300:700, y = predict(TanCyo$reflectance_spline_fit), col = TanCyo$reflectance_rgb, pch = 19, xlab = "Wavelength (nm)", ylab = " Reflectance (%)")
+
+par(mfrow=c(1,1))
+
+plot(x = basis.function.wl, y = spline.coef.and.refl$TanCyo.coefficients, pch = 19)
+
+
+
+par(mfrow=c(1,2))
+plot(x = basis.function.wl, y = spline.coef.and.refl$TanArg, pch = 19)
+
+plot(x = basis.function.wl, y = spline.coef.and.refl$TanHei, pch = 19)
+
+par(mfrow=c(1,1))
+
+
+par(mfrow=c(1,2))
+plot(x = basis.function.wl, y = spline.coef.and.refl$TanArg.coefficients, pch = 19)
+
+plot(x = basis.function.wl, y = spline.coef.and.refl$TanHei.coefficients, pch = 19)
+
+par(mfrow=c(1,1))
+
+
+for (i in 1:38){
+x <- i
+c.refl <- c(unlist(spline.coef.and.refl[x, seq(2,102,2)]))
+c.coef <- c(unlist(spline.coef.and.refl[x, seq(3,103,2)]))
+c.data <- c(c.refl, c.coef)
+factor.data <- data.frame(c.data) %>% arrange(c.data)
+factor.data <- factor.data$c.data
+c.type <- rep(c("refl", "coef"), length(c.refl))
+
+c.species <- NULL
+for (species_name in names(spline_results)){
+  
+  z <- species_name
+  z <- rep(z,2)
+  c.species <- c(c.species, z)
+}
+
+wl.305 <- cbind(c.data, c.type)
+wl.305 <- cbind(wl.305, c.species)
+wl.305 <- data.frame(wl.305)
+colnames(wl.305) <- c("data", "data.type", "species")
+wl.305$data <- as.numeric(c(wl.305$data))
+
+
+print(ggplot(data = wl.305, aes(x = species, y = (data), fill = data.type)) + geom_bar(position = "dodge", stat = "identity") + theme(axis.text.x = element_blank(), axis.text.y = element_text()) + ylab("") + xlab("") + scale_fill_manual(values = c("purple4", "yellow3")) + ggtitle( as.character(spline.coef.and.refl[x,"wl"])))
+
+scatterplot <- data.frame(cbind(c.refl, c.coef))
+colnames(scatterplot) <- c("refl", "coef")
+print(ggplot(data = scatterplot, aes(x = c.refl, y = c.coef)) + geom_point() + ggtitle( as.character(spline.coef.and.refl[x,"wl"])))
+
+
+}
+
+```
+
+
+
 ### Step 20: Fitting cubic functions to spline data
 
 This chunk of code is to confirm how the splines work. Current idea of how the math works. For some domain x (wavelength: 300:700), we create a series of $k$ basis functions ($F_k(x)$) that can be transformed by spline coefficients ($c_k$). Thus, each point (x) can be defined as follows: $N(x) = \sum_{n=1}^k c_k*F_k(x)$. The output of the basis function transformation will create a piecewise polynomial of cubic functions.
@@ -2249,9 +2385,9 @@ abline(v = internal.knots[3], col = "orange2")
 
 ```{r}
 
- summer_tanager_reflectance <- read_xlsx("C:\\Users\\proto\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
+ # summer_tanager_reflectance <- read_xlsx("C:\\Users\\proto\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
 
-#summer_tanager_reflectance <- read_xlsx("C:\\Users\\batra\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
+summer_tanager_reflectance <- read_xlsx("C:\\Users\\batra\\Box\\Alfaro_Lab\\Museum_Hyperspec_Project\\Museum_setup_small\\tanager.xlsx", skip = 5)
 
 summer_tanager_reflectance <- summer_tanager_reflectance[12:88]* 100
 
