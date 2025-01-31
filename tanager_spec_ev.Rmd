@@ -2733,7 +2733,7 @@ for (i in 1:nrow(asr.mvgls.df)){
   
   node.spline.coef.matrix <- matrix(unlist(c(asr.mvgls.df[x, 2:39])), nrow = 38, ncol = 1)
   
-  reflectance.storage <- basis_spline_matrix %*% node.spline.coef.matrix
+  reflectance.storage <- bspline_matrix_bSpline %*% node.spline.coef.matrix
   
   reflectance.storage <- c(reflectance.storage)
   
@@ -2759,7 +2759,7 @@ for (i in 1:ncol(asr.reflectance.mvgls)){
   
   asr.mvmorph.color[i] <- as.character(spec2rgb(procspec(rspec, fixneg = "zero")))
   
-  plot(rspec, main = paste(y, "ASR"), col = as.character(spec2rgb(procspec(rspec, fixneg = "zero"))), lwd = 5, ylim = c(0,100))
+  plot(rspec, main = paste(y, "ASR"), col = as.character(spec2rgb(procspec(rspec, fixneg = "zero"))), lwd = 5, ylim = c(0,30))
   
   
 }
@@ -3290,7 +3290,7 @@ ggplot(data = variance.wl, aes(x = wl, y = Variance, col = Variance)) + geom_poi
 ```
 
 ### BEAST ancestral state reconstruction
-```{message=FALSE}
+```{r, message=FALSE}
 
 # load("C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\BEAST.trees.subset.RData")
 
@@ -3393,7 +3393,61 @@ lines(x = 300:700, y = asr.reflectance.mvgls[,1], col = "black", lwd = 5)
 ```
 
 
+#### test
+```{r}
 
+test.root <- NULL
+test.root[1] <- test.tree$root.annotation$spline_coefficients_BEAST1
+test.root[2] <- test.tree$root.annotation$spline_coefficients_BEAST2
+test.root[3] <- test.tree$root.annotation$spline_coefficients_BEAST3
+test.root[4] <- test.tree$root.annotation$spline_coefficients_BEAST4
+test.root[5] <- test.tree$root.annotation$spline_coefficients_BEAST5
+test.root[6] <- test.tree$root.annotation$spline_coefficients_BEAST6
+test.root[7] <- test.tree$root.annotation$spline_coefficients_BEAST7
+test.root[8] <- test.tree$root.annotation$spline_coefficients_BEAST8
+test.root[9] <- test.tree$root.annotation$spline_coefficients_BEAST9
+test.root[10] <- test.tree$root.annotation$spline_coefficients_BEAST10
+test.root[11] <- test.tree$root.annotation$spline_coefficients_BEAST11
+test.root[12] <- test.tree$root.annotation$spline_coefficients_BEAST12
+test.root[13] <- test.tree$root.annotation$spline_coefficients_BEAST13
+test.root[14] <- test.tree$root.annotation$spline_coefficients_BEAST14
+test.root[15] <- test.tree$root.annotation$spline_coefficients_BEAST15
+test.root[16] <- test.tree$root.annotation$spline_coefficients_BEAST16
+test.root[17] <- test.tree$root.annotation$spline_coefficients_BEAST17
+test.root[18] <- test.tree$root.annotation$spline_coefficients_BEAST18
+test.root[19] <- test.tree$root.annotation$spline_coefficients_BEAST19
+test.root[20] <- test.tree$root.annotation$spline_coefficients_BEAST20
+test.root[21] <- test.tree$root.annotation$spline_coefficients_BEAST21
+test.root[22] <- test.tree$root.annotation$spline_coefficients_BEAST22
+test.root[23] <- test.tree$root.annotation$spline_coefficients_BEAST23
+test.root[24] <- test.tree$root.annotation$spline_coefficients_BEAST24
+test.root[25] <- test.tree$root.annotation$spline_coefficients_BEAST25
+test.root[26] <- test.tree$root.annotation$spline_coefficients_BEAST26
+test.root[27] <- test.tree$root.annotation$spline_coefficients_BEAST27
+test.root[28] <- test.tree$root.annotation$spline_coefficients_BEAST28
+test.root[29] <- test.tree$root.annotation$spline_coefficients_BEAST29
+test.root[30] <- test.tree$root.annotation$spline_coefficients_BEAST30
+test.root[31] <- test.tree$root.annotation$spline_coefficients_BEAST31
+test.root[32] <- test.tree$root.annotation$spline_coefficients_BEAST32
+test.root[33] <- test.tree$root.annotation$spline_coefficients_BEAST33
+test.root[34] <- test.tree$root.annotation$spline_coefficients_BEAST34
+test.root[35] <- test.tree$root.annotation$spline_coefficients_BEAST35
+test.root[36] <- test.tree$root.annotation$spline_coefficients_BEAST36
+test.root[37] <- test.tree$root.annotation$spline_coefficients_BEAST37
+test.root[38] <- test.tree$root.annotation$spline_coefficients_BEAST38
+test.root[39] <- test.tree$root.annotation$spline_coefficients_BEAST39
+
+
+
+test.refl <- bspline_matrix_bSpline %*% matrix(test.root[2:39], ncol = 1)
+test.refl <- test.refl + test.root[1]
+
+plot(300:700, test.refl, pch = 19)
+
+what <- read.delim("C:/Users/batra/Box/BEAST Output/Spline_XML_Output_1.30.25/what", header=FALSE)
+
+barplot(1/as.numeric(c(what[2, 2:40])), ylim = c(0,35), names.arg = coefficient_names[2:40])
+```
 
 
 ### Figuring out what the internal node labels for BEAST
