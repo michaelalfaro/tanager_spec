@@ -3459,9 +3459,6 @@ path.BEAST <- "C:\\Users\\proto\\Box\\BEAST Output\\Spline_XML_Output_2.3.25\\pr
 BEAST.precision.matrix.data <- pblapply(list.files(path.BEAST, full=T), read.delim)
 
 
-
-"C:\Users\proto\Box\BEAST Output\Spline_XML_Output_2.3.25\varcovar.matrix.data"
-
 BEAST.Pinv.matrix <- NULL
 for (i in 1:length(BEAST.precision.matrix.data)){
   
@@ -3539,35 +3536,38 @@ for (i in 1:length(BEAST.varcovar.matrix.data)){
 
 
 
+coefficient_names <- c("Species", "Int.", "1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38")
 
 coef.names <- factor(coefficient_names[2:40], ordered = TRUE, levels = c(coefficient_names[2:40]))
 
-
-
-
-
-
-
-
-
-
 BEAST.variance.rates <- data.frame(coef.names = coef.names, BEAST = as.numeric(diag(BEAST.varcovar.matrix)))
 
-BEAST.variance.rates <- melt(BEAST.variance.rates, id = "coef.names")
+BEAST.variance.rates %>% ggplot(aes(x = coef.names, y = BEAST, fill = BEAST)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) + labs(x = "Coefficients", y = expression(paste("Variance", sep = " ", (sigma^{2}))), title = "Evolutionary Rates of Spline Coefficients", subtitle = "Method = BEAST") + theme_bw() + scale_fill_viridis_c()
+```
 
-BEAST.variance.rates %>% ggplot(aes(x = coef.names, y = BEAST)) + geom_bar(stat = "identity")
-
-
+#### BEAST correlation matrix
+```{r}
 BEAST.correlation.matrix <- cov2cor(BEAST.varcovar.matrix)
 
-coefficients.names <- NULL
+coefficients.names.1 <- rep(coef.names, 39)
+
+coefficients.names.2 <- NULL
 for (i in 1:length(coef.names)){
   
+  x <- rep(coefficients_names.1[i], 39)
   
-  
+  coefficients.names.2 <- c(coefficients.names.2, x)
   
 }
 
+coefficients.names.1 <- factor(coefficients.names.1, ordered = TRUE, levels = coef.names)
+coefficients.names.2 <- factor(coefficients.names.2, ordered = TRUE, levels = coef.names)
+
+BEAST.correlation.heatmap <- data.frame(c(BEAST.correlation.matrix), coefficients.names.1, coefficients.names.2)
+
+str(BEAST.correlation.heatmap)
+
+BEAST.correlation.heatmap %>% ggplot(aes(x = coefficients.names.1, coefficients.names.2, fill = c.BEAST.correlation.matrix.)) + geom_tile() + scale_fill_gradient2(low = "purple4", mid = "white", high = "coral3") + theme_bw() + theme(legend.position = "none")
 ```
 
 
