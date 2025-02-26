@@ -3452,12 +3452,15 @@ load("BEAST.trees.subset.RData")
 ```
 
 
-#### varcovar matrix
+#### precision matrix
 ```{r}
 path.BEAST <- "C:\\Users\\proto\\Box\\BEAST Output\\Spline_XML_Output_2.3.25\\precision.matrix.data"
 
 BEAST.precision.matrix.data <- pblapply(list.files(path.BEAST, full=T), read.delim)
 
+
+
+"C:\Users\proto\Box\BEAST Output\Spline_XML_Output_2.3.25\varcovar.matrix.data"
 
 BEAST.Pinv.matrix <- NULL
 for (i in 1:length(BEAST.precision.matrix.data)){
@@ -3509,6 +3512,90 @@ ggplot(data = BEAST.correlations, aes(fill = BEAST.corr.matrix.vector, x = c.m.n
 
 ```
 
+
+#### varcovar matrix
+```{r}
+path.BEAST <- "C:\\Users\\proto\\Box\\BEAST Output\\Spline_XML_Output_2.3.25\\varcovar.matrix.data"
+
+BEAST.varcovar.matrix.data <- pblapply(list.files(path.BEAST, full=T), read.delim)
+
+
+BEAST.varcovar.matrix <- NULL
+for (i in 1:length(BEAST.varcovar.matrix.data)){
+  
+  x <- i
+  
+  data <- t(BEAST.varcovar.matrix.data[[x]])
+  
+  data <- as.numeric(c(data[-1,1]))
+  
+  data <- matrix(data, nrow = length(data)/39, byrow = TRUE)
+  
+  print(data)
+  
+  BEAST.varcovar.matrix <- rbind(BEAST.varcovar.matrix, data)
+  
+}
+
+
+
+
+coef.names <- factor(coefficient_names[2:40], ordered = TRUE, levels = c(coefficient_names[2:40]))
+
+
+
+
+
+
+
+
+
+
+BEAST.variance.rates <- data.frame(coef.names = coef.names, BEAST = as.numeric(diag(BEAST.varcovar.matrix)))
+
+BEAST.variance.rates <- melt(BEAST.variance.rates, id = "coef.names")
+
+BEAST.variance.rates %>% ggplot(aes(x = coef.names, y = BEAST)) + geom_bar(stat = "identity")
+
+
+BEAST.correlation.matrix <- cov2cor(BEAST.varcovar.matrix)
+
+coefficients.names <- NULL
+for (i in 1:length(coef.names)){
+  
+  
+  
+  
+}
+
+```
+
+
+
+```{r}
+
+ggplot(data = BEAST.variance.rates, aes(x = coef.names, y = value, fill = variable)) + geom_bar(stat = "identity", position = "dodge", alpha = 0.75, show.legend = TRUE) + scale_fill_manual(aes(fill = variable), values = c("BEAST" = "orange2", "mvMORPH" = "purple4")) + theme_minimal() + theme(axis.text.x = element_text(angle = 90, size = 5), axis.title.x = element_blank(), legend.title = element_blank(), legend.position = c(0.15, 0.845), legend.background = element_rect(fill = "cornsilk"), legend.direction = "horizontal") + ylab(expression(paste("Variance", sep = " ", (sigma^{2})))) + labs(title = "BEAST and mvMORPH scale evolutionary rates differently")
+
+BEAST.corr.matrix <- cov2cor(BEAST.Pinv.matrix)
+
+BEAST.corr.matrix.vector <- NULL
+for (i in 1:39){
+  
+  x <- i
+  
+  storage <- c(BEAST.corr.matrix[,x])
+  
+  BEAST.corr.matrix.vector <- c(BEAST.corr.matrix.vector, storage)
+  
+}
+
+BEAST.correlations <- cbind(BEAST.corr.matrix.vector, c.m.names)
+BEAST.correlations <- data.frame(BEAST.correlations)
+BEAST.correlations$BEAST.corr.matrix.vector <- as.numeric(BEAST.correlations$BEAST.corr.matrix.vector)
+
+ggplot(data = BEAST.correlations, aes(fill = BEAST.corr.matrix.vector, x = c.m.names.x, y = c.m.names.y)) + geom_tile(show.legend = TRUE) + scale_fill_gradient2(low = "blue4", name = "Correlation",high = "red3", mid = "white", limits = c(-1,1)) + theme(axis.text.x = element_text(), axis.title.y = element_text()) + ylab("") + xlab("")
+
+```
 
 ### Figuring out what the internal node labels for BEAST
 
