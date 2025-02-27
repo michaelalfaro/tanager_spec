@@ -3287,6 +3287,7 @@ color.gradient <- c(color.gradient[1],
 ggplot(data = variance.wl, aes(x = wl, y = Variance, col = Variance)) + geom_point() + theme(axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.title.y = element_blank()) + scale_color_gradient(low = "blue4", high = "coral") + xlab("Wavelength (nm)") + geom_vline(xintercept = c(boundary_knots), col = "white", lwd = 1.5) + geom_vline(xintercept = c(300:700), col = c(color.gradient), lwd = 1.5) + geom_vline(xintercept = c(internal_knots), col = "white", lwd = 1.5)
 
 
+
 ```
 
 ### BEAST ancestral state reconstruction
@@ -3542,8 +3543,23 @@ coef.names <- factor(coefficient_names[2:40], ordered = TRUE, levels = c(coeffic
 
 BEAST.variance.rates <- data.frame(coef.names = coef.names, BEAST = as.numeric(diag(BEAST.varcovar.matrix)))
 
-BEAST.variance.rates %>% ggplot(aes(x = coef.names, y = BEAST, fill = BEAST)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) + labs(x = "Coefficients", y = expression(paste("Variance", sep = " ", (sigma^{2}))), title = "Evolutionary Rates of Spline Coefficients", subtitle = "Method = BEAST") + theme_bw() + scale_fill_viridis_c()
+BEAST.variance.rates %>% ggplot(aes(x = coef.names, y = BEAST, fill = coef.names)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) + labs(x = "Coefficients", y = expression(paste("Variance", sep = " ", (sigma^{2}))), title = "Evolutionary Rates of Spline Coefficients", subtitle = "Method = BEAST") + theme_bw() + scale_fill_manual(values = c(color_for_plots_V1)) + theme(legend.position = "none")
+
+BEAST.variance.rates %>% ggplot(aes(x = coef.names, y = ((BEAST)/616.586), fill = coef.names)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) + labs(x = "Coefficients", y = expression(paste("Variance", sep = " ", (sigma^{2}))), title = "Evolutionary Rates of Spline Coefficients", subtitle = "Method = BEAST") + theme_bw() + scale_fill_manual(values = c(color_for_plots_V1)) + theme(legend.position = "none")
+
+mvMORPH.variance.rates <- data.frame(coef.names = coef.names, mvMORPH = variances.asr.mvgls)
+
+mvMORPH.variance.rates %>%  ggplot(aes(x = coef.names, y = mvMORPH, fill = coef.names)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 0, hjust = 0.5)) + labs(x = "Coefficients", y = expression(paste("Variance", sep = " ", (sigma^{2}))), title = "Evolutionary Rates of Spline Coefficients", subtitle = "Method = mvMORPH") + theme_bw() + scale_fill_manual(values = c(color_for_plots_V1)) + theme(legend.position = "none")
+
+
+variance.rates <- data.frame(coef.names = rep(coef.names, 2), method = c(rep("BEAST", 39), rep("mvMORPH", 39)), rates = c(as.numeric(diag(BEAST.varcovar.matrix))/616.586, variances.asr.mvgls))
+
+variance.rates %>% ggplot(aes(x = coef.names, y = rates, fill = method)) + geom_bar(stat = "identity", position = "dodge") + theme_bw() + scale_fill_manual(values = c("purple4", "coral3")) + labs(x = "Coefficients", y = expression(paste("Variance", sep = " ", (sigma^{2}))), title = "Evolutionary Rates of Spline Coefficients") + theme(legend.position = c(0.1, 0.8), legend.background = element_rect(fill = "transparent")) + guides(fill = guide_legend(title = "Method"))
+
+
 ```
+
+
 
 #### BEAST correlation matrix
 ```{r}
@@ -3554,7 +3570,7 @@ coefficients.names.1 <- rep(coef.names, 39)
 coefficients.names.2 <- NULL
 for (i in 1:length(coef.names)){
   
-  x <- rep(coefficients_names.1[i], 39)
+  x <- rep(coefficients.names.1[i], 39)
   
   coefficients.names.2 <- c(coefficients.names.2, x)
   
