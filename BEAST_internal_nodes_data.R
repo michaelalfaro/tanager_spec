@@ -1,4 +1,4 @@
-setwd("~/tanager_spec")
+setwd(paste(here(), "/tanager_spec", sep = ''))
 load("tanager_spec/BEAST.trees.subset.RData")
 library(splines2)
 library(ggplot2)
@@ -7,6 +7,7 @@ library(tidylog)
 library(pavo)
 library(photobiology)
 library(ggspectra)
+library(here)
 
 
 # Creates a basis matrix with our respective domain (300-700 nm)
@@ -95,11 +96,17 @@ intnode.reflectance.BEAST <- tibble(tree_name = rep(names(BEAST.trees.subset), e
 # 3. a series in order to join our tibble with another tibble holding the coefficient information
 intnode.reflectance.BEAST <- intnode.reflectance.BEAST %>% mutate(nodes_list = rep(c(1,2,3,5,8,9,10,11,12,14,17,20,21,24,26,29,31,33,34,35,38,40,44,47,49,51,54,55,56,58,60,64,65,67,68,69,70,72,76,77,81,83,85,88,89,90,92,94,97), 100), nodes_internal = rep(c(53:101), 100)) %>% mutate(join_list = 1:length(nodes_list))
 
-# Function used to extra
+# Function used to extract the internal node data from the BEAST output
 extraction <- function(multiPhylo, internal_node_values){
   
+  if (class(multiPhylo) != "multiPhylo"){
+    stop("You are not using a 'multiPhylo' object!")
+  }
+  
+  # Storage vector
   internal_node_coefs <- NULL
   
+  # for loop that takes the annotations from the respective tree and stores it into a vector
   for (run in names(multiPhylo)){
     
     print(run)
@@ -108,6 +115,7 @@ extraction <- function(multiPhylo, internal_node_values){
     
     node_coefs <- NULL
     
+    # for loop that extracts the spline coefficients from an internal node from each tree 
     for (i in 1:length(spline_coefs)){
       
       node <- internal_node_values[i]
