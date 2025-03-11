@@ -8,9 +8,11 @@ library(pavo)
 library(photobiology)
 library(ggspectra)
 
+
+# Creates a basis matrix with our respective domain (300-700 nm)
 bspline.matrix <- bSpline(300:700, df = 38)
 
-
+# for loop method of extracting our coefficients and generating the predicted reflectance of root node
 # Extracting root node ASR coefficients for 100 trees
 root.reflectance.ASR <- NULL
 for (i in 1:dim(root.spline.coef)[1]){
@@ -27,64 +29,73 @@ for (i in 1:dim(root.spline.coef)[1]){
   
 }
 
-
+# Plots all of the reflectance curves prior to correcting the negative values
 matplot(x = 300:700, y = root.reflectance.ASR[,-1], lwd = 2, type = "l", xlab = "Wavelength (nm)", ylab = "Reflectance (%)", main = "Root ASR BEAST")
 
+# Turning our reflectance data into a dataframe
 root.reflectance.ASR <- data.frame(wl = 300:700, root.reflectance.ASR)
 
+# Turning our reflectance dataframe into an rspec object
 root.reflectance.ASR <- as.rspec(root.reflectance.ASR)
 
+# Correcting our negative reflectance values into 0
 root.reflectance.ASR <- procspec(root.reflectance.ASR, fixneg = "zero")
 
-
-
+# Plotting our corrected reflectance curves
 matplot(x = root.reflectance.ASR$wl, y = root.reflectance.ASR[,-1], pch = 19, cex = 0.5)
 
 
-
-# Repeating the same process but in the tidyverse
+#####
+#Repeating the same process but in the tidyverse
 
 # Creates a column for run number and the intercept coefficient of each run for the root
-y <- tibble(run = 1:100, root_intercept = root.spline.coef[,1])
+root.reflectance.BEAST <- tibble(run = 1:100, root_intercept = root.spline.coef[,1])
 
-# Splits the rows (non-intercept spline coefficients) for each run of the root
-z <- split(root.spline.coef[,-1], f = 1:100, 38)
-
-# Adds the spline coefficient lists to our tibble
-y <- y %>% mutate(spline_coefs = z)
+# Splits the rows (non-intercept spline coefficients) for each run of the root and adds the spline coefficient lists to our tibble 
+root.reflectance.BEAST <- root.reflectance.BEAST %>% mutate(spline_coefs = split(root.spline.coef[,-1], f = 1:100, 38))
 
 # Takes the spline coefficients our basis matrix and creates reflectance values (stored as lists) into our tibble
-y <- y %>% group_by(run) %>% mutate(reflectance = list(bspline.matrix %*% matrix(unlist(spline_coefs), ncol = 1))) %>% ungroup()
+root.reflectance.BEAST <- root.reflectance.BEAST %>% group_by(run) %>% mutate(reflectance = list(bspline.matrix %*% matrix(unlist(spline_coefs), ncol = 1))) %>% ungroup()
 
 # Rescales the reflectance values by adding the intercept coefficient to those values
-y <- y %>% group_by(run) %>% mutate(rescaled_reflectance = list(unlist(reflectance) + root_intercept)) %>% ungroup()
+root.reflectance.BEAST <- root.reflectance.BEAST %>% group_by(run) %>% mutate(rescaled_reflectance = list(unlist(reflectance) + root_intercept)) %>% ungroup()
 
 # Adds a column containing the rspec dataframes to the tibble  
-y <- y %>% group_by(run) %>% mutate(test = list(procspec(as.rspec(data.frame(wl = 300:700, reflectance = unlist(rescaled_reflectance))), fixneg = "zero")))
+root.reflectance.BEAST <- root.reflectance.BEAST %>% group_by(run) %>% mutate(rspec = list(procspec(as.rspec(data.frame(wl = 300:700, reflectance = unlist(rescaled_reflectance))), fixneg = "zero"))) %>% ungroup()
 
 # Adds a column to the tibble that has the rgb color from the rspec object
-y <- y %>% group_by(run) %>% mutate(color = spec2rgb(data.frame(test)))
+root.reflectance.BEAST <- root.reflectance.BEAST %>% group_by(run) %>% mutate(color = spec2rgb(data.frame(rspec))) %>% ungroup()
   
 # Creates a separate tibble that unlists the rescaled_reflectance (stored as a singular vector)
-x <- y %>% unnest(cols = rescaled_reflectance)
+plot.root.reflectance <- root.reflectance.BEAST %>% unnest(cols = rescaled_reflectance)
+
+# Removing any unnecessary columns in our plotting tibble
+plot.root.reflectance <- plot.root.reflectance %>% select(-c(root_intercept, spline_coefs, reflectance,rspec, color))
 
 # Manually 'procspec' our rescaled_reflectance
-x$rescaled_reflectance[x$rescaled_reflectance < 0] <- 0
+plot.root.reflectance$rescaled_reflectance[plot.root.reflectance$rescaled_reflectance < 0] <- 0
 
 # Adds a wavelength column
-x <- x %>% mutate(wl = 300:700)
+plot.root.reflectance <- plot.root.reflectance %>% mutate(wl = rep(300:700, 100))
 
 # Plots each predicted reflectance curve from the BEAST runs
-x %>% group_by(x$run) %>% ggplot(aes(x = wl, y = rescaled_reflectance)) + geom_point(alpha = 0.25, size = 0.75, color = as.character(rep(y$color, each = 401))) + theme() + theme_bw() + stat_wl_strip(ymin = -1.5, ymax = -0.5) + scale_fill_identity() + labs(x = "Wavelength (nm)", y = "Reflectance (%)", title = "Root Reflectance Predicted by BEAST")
+plot.root.reflectance %>% group_by(run) %>% ggplot(aes(x = wl, y = rescaled_reflectance)) + geom_point(alpha = 0.25, size = 0.75, color = as.character(rep(root.reflectance.BEAST$color, each = 401))) + theme() + theme_bw() + stat_wl_strip(ymin = -1.5, ymax = -0.5) + scale_fill_identity() + labs(x = "Wavelength (nm)", y = "Reflectance (%)", title = "Root Reflectance Predicted by BEAST")
 
 
 
 # Applying what we did but with the internal nodes
 
-a <- tibble(tree_name = rep(names(BEAST.trees.subset), each = length(53:101)))
+# Creates a tibble with the trees drawn from our MCMC
+intnode.reflectance.BEAST <- tibble(tree_name = rep(names(BEAST.trees.subset), each = length(53:101)))
 
-a <- a %>% mutate(nodes_list = rep(c(1,2,3,5,8,9,10,11,12,14,17,20,21,24,26,29,31,33,34,35,38,40,44,47,49,51,54,55,56,58,60,64,65,67,68,69,70,72,76,77,81,83,85,88,89,90,92,94,97), 100), nodes_internal = rep(c(53:101), 100)) %>% mutate(join_list = 1:length(nodes_list))
+# Adds 3 new columns
+# 1. a series of node numbers used in BEAST
+# 2. a series of node numbers according to the tree 
+# NOTE: Tree is labeled 1:101, with the first 51 points being the tips and the rest are labeled working from the root through the tree to tips, starting from the bottom and working its way up to the top of tree. BEAST, however, only does the latter, incorporating the tips within the flow of the tree. For example, node 1 in BEAST is actually node 53 on the tree, and node 4 in BEAST would be the first tip (TanCyo).
+# 3. a series in order to join our tibble with another tibble holding the coefficient information
+intnode.reflectance.BEAST <- intnode.reflectance.BEAST %>% mutate(nodes_list = rep(c(1,2,3,5,8,9,10,11,12,14,17,20,21,24,26,29,31,33,34,35,38,40,44,47,49,51,54,55,56,58,60,64,65,67,68,69,70,72,76,77,81,83,85,88,89,90,92,94,97), 100), nodes_internal = rep(c(53:101), 100)) %>% mutate(join_list = 1:length(nodes_list))
 
+# Function used to extra
 extraction <- function(multiPhylo, internal_node_values){
   
   internal_node_coefs <- NULL
@@ -168,7 +179,6 @@ ASR_plotter <- function(dataframe, nodes){
   }
     
   if (length(nodes) == 1){
-    
     
     test.node <- dataframe %>% filter(nodes_list == nodes)
     
