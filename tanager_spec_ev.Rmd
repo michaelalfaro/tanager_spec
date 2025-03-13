@@ -2693,7 +2693,7 @@ for (i in 1:38){
 spline.data.mvgls <- NULL
 
 # Data frame without a species column
-spline.coef.data.mvgls <-spline_coef_data[,-1]
+spline.coef.data.mvgls <- spline_coef_data[,-1]
 
 # for loop to turn our data frame into a numeric "vector"
 # You do not want it to be a matrix or a data frame

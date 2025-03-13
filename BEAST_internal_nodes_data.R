@@ -82,7 +82,10 @@ plot.root.reflectance <- plot.root.reflectance %>% mutate(wl = rep(300:700, 100)
 # Plots each predicted reflectance curve from the BEAST runs
 plot.root.reflectance %>% group_by(run) %>% ggplot(aes(x = wl, y = rescaled_reflectance)) + geom_point(alpha = 0.25, size = 0.75, color = as.character(rep(root.reflectance.BEAST$color, each = 401))) + theme() + theme_bw() + stat_wl_strip(ymin = -1.5, ymax = -0.5) + scale_fill_identity() + labs(x = "Wavelength (nm)", y = "Reflectance (%)", title = "Root Reflectance Predicted by BEAST")
 
+# Plotting with mvMORPH root node
+test <- plot.root.reflectance %>% mutate(mvMORPH = rep(asr.reflectance.mvgls[,1], 100))
 
+test %>% group_by(run) %>% ggplot(aes(x = wl, y = rescaled_reflectance)) + geom_point(alpha = 0.25, size = 0.75, color = as.character(rep(root.reflectance.BEAST$color, each = 401))) + theme() + theme_bw() + stat_wl_strip(ymin = -1.5, ymax = -0.5) + scale_fill_identity() + labs(x = "Wavelength (nm)", y = "Reflectance (%)", title = "Root Reflectance Predicted by BEAST") + geom_point(inherit.aes = FALSE, aes(x = wl, y = mvMORPH), color = "black", pch = 19)
 
 # Applying what we did but with the internal nodes
 
@@ -226,15 +229,28 @@ ASR_plotter <- function(dataframe, nodes){
 
 # Spline coefficient densities at each node for 100 runs
 
-test <- a %>% unnest(cols = internal_node_coefs)
+coef_densities <- intnode.reflectance.BEAST %>% unnest(cols = internal_node_coefs)
 
-test <- test %>% mutate(coef_name = rep(c("Int.", "1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38"), 4900))
+coef_densities <- coef_densities %>% mutate(coef_name = rep(c("Int.", "1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38"), 4900))
 
-test2 <- test %>% filter(coef_name == "Int." & nodes_internal == 53) %>%  mutate(join_list = 1:length(coef_name))
+x <- coef_densities %>% pivot_wider(names_from = "nodes_internal", values_from = "internal_node_coefs")
+
+
+spline_coef_density <- function(dataframe, coefficients, internal_nodes){
+  
+  
+  
+  
+  
+  
+  
+}
+
+test2 <- coef_densities %>% filter(coef_name == "Int." & nodes_internal == 53) %>%  mutate(join_list = 1:length(coef_name))
 
 test2 %>% ggplot(aes(x = unlist(internal_node_coefs))) + geom_density(fill = "blue")
 
-test3 <- test %>% filter(coef_name == "Int." & nodes_internal == 54) %>% mutate(join_list = 1:length(coef_name))
+test3 <- coef_densities %>% filter(coef_name == "Int." & nodes_internal == 54) %>% mutate(join_list = 1:length(coef_name))
 
 test3 %>% ggplot(aes(x = unlist(internal_node_coefs))) + geom_density(fill = "red")
 
@@ -245,6 +261,7 @@ test4 %>% ggplot() + geom_density(aes(x = unlist(internal_node_coefs.x)), fill =
 test5 <- test4 %>% pivot_longer(cols = c(internal_node_coefs.x, internal_node_coefs.y))
 
 test5 %>% ggplot(aes(x = unlist(value), fill = name)) + geom_density(alpha = 0.25) + scale_fill_manual(labels = c(53,54), name = "Node", values = c("black", "yellow2"))
+
 #####
 
 # Numerical values in annotation list corresponding to the internal nodes (not including tip labels) for our tanager tree
