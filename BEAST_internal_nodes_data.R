@@ -6,6 +6,7 @@ library(pavo)
 library(photobiology)
 library(ggspectra)
 library(ape)
+library(tictoc)
 library(here)
 here()
 load("BEAST.trees.subset.RData")
@@ -271,17 +272,18 @@ ASR_plotter <- function(dataframe, nodes){
 
 tanagerTree <- read.nexus("tanagerTree.NEXUS")
 
-
+tic()
 pdf("BEAST_ASR_no_root.pdf", width = 8, height = 6)
 plot(tanagerTree)
 nodelabels(cex = 0.75, frame = "circle", bg = "yellow")
 suppressMessages({ASR_plotter(dataframe = intnode.reflectance.BEAST, nodes = c(unique(intnode.reflectance.BEAST$nodes_list)))})
 dev.off()
+toc()
 
 #####
 # Spline coefficient densities at each node for 100 runs
 
-test <- a %>% unnest(cols = internal_node_coefs)
+test <- intnode.reflectance.BEAST %>% unnest(cols = internal_node_coefs)
 
 test <- test %>% mutate(coef_name = rep(c("Int.", "1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38"), 4900))
 
