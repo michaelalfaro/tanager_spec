@@ -6,6 +6,7 @@ library(pavo)
 library(photobiology)
 library(ggspectra)
 library(ape)
+library(tictoc)
 library(here)
 here()
 load("BEAST.trees.subset.RData")
@@ -66,7 +67,7 @@ root.reflectance.BEAST <- root.reflectance.BEAST %>% group_by(run) %>% mutate(rs
 
 # Adds a column to the tibble that has the rgb color from the rspec object
 root.reflectance.BEAST <- root.reflectance.BEAST %>% group_by(run) %>% mutate(color = spec2rgb(data.frame(rspec))) %>% ungroup()
-  
+
 # Creates a separate tibble that unlists the rescaled_reflectance (stored as a singular vector)
 plot.root.reflectance <- root.reflectance.BEAST %>% unnest(cols = rescaled_reflectance)
 
@@ -125,9 +126,9 @@ extraction <- function(multiPhylo, internal_node_values){
       node_coefs[i] <- spline_coefs[[node]]
       
     }
-  
-  internal_node_coefs <- c(internal_node_coefs, node_coefs)
-  
+    
+    internal_node_coefs <- c(internal_node_coefs, node_coefs)
+    
   }
   return(tibble(internal_node_coefs))
 }
@@ -192,7 +193,7 @@ ASR_plotter <- function(dataframe, nodes){
   if (class(dataframe$internal_node_coefs) != "list"){
     stop("Spline coefficient column needs to be a list.")
   }
-
+  
   if (length(nodes) == 1){
     
     test.node <- dataframe %>% filter(nodes_list == nodes)
@@ -240,7 +241,7 @@ ASR_plotter <- function(dataframe, nodes){
       test.node <- test.node %>% rowwise() %>% mutate(spline_coefs = list(unlist(internal_node_coefs)[-1])) %>% ungroup()
       
       test.node <- test.node %>% select(-internal_node_coefs)
-
+      
       test.node <- test.node %>% rowwise() %>% mutate(reflectance = list(bspline.matrix %*% matrix(unlist(spline_coefs), ncol = 1))) %>% ungroup()
       
       test.node <- test.node %>% rowwise() %>% mutate(rescaled_reflectance = list(unlist(reflectance) + intercept_coef)) %>% ungroup()
@@ -271,17 +272,18 @@ ASR_plotter <- function(dataframe, nodes){
 
 tanagerTree <- read.nexus("tanagerTree.NEXUS")
 
-
+tic()
 pdf("BEAST_ASR_no_root.pdf", width = 8, height = 6)
 plot(tanagerTree)
 nodelabels(cex = 0.75, frame = "circle", bg = "yellow")
 suppressMessages({ASR_plotter(dataframe = intnode.reflectance.BEAST, nodes = c(unique(intnode.reflectance.BEAST$nodes_list)))})
 dev.off()
+toc()
 
 #####
 # Spline coefficient densities at each node for 100 runs
 
-test <- a %>% unnest(cols = internal_node_coefs)
+test <- intnode.reflectance.BEAST %>% unnest(cols = internal_node_coefs)
 
 test <- test %>% mutate(coef_name = rep(c("Int.", "1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","34","35","36","37","38"), 4900))
 
@@ -296,7 +298,7 @@ test3 %>% ggplot(aes(x = unlist(internal_node_coefs))) + geom_density(fill = "re
 test4 <- test2 %>% left_join(test3, by = "join_list")
 
 test4 %>% ggplot() + geom_density(aes(x = unlist(internal_node_coefs.x)), fill = "black", alpha = 0.5) + geom_density(aes(x = unlist(internal_node_coefs.y)), fill = "yellow2", alpha = 0.5) + guides(fill = guide_legend(title = "Node")) + theme() + scale_fill_manual(values = c("53", "54"))
-  
+
 test5 <- test4 %>% pivot_longer(cols = c(internal_node_coefs.x, internal_node_coefs.y))
 
 test5 %>% ggplot(aes(x = unlist(value), fill = name)) + geom_density(alpha = 0.25) + scale_fill_manual(labels = c(53,54), name = "Node", values = c("black", "yellow2"))
@@ -317,19 +319,19 @@ for (i in 1:length(BEAST.trees.subset)){
   tree <- BEAST.trees.subset[[x]]
   
   internal.node.data.subset <- NULL
-
+  
   
   # for loop extracting the spline coefficients for each internal node of our tree
-    for (j in 1:length(internal.node.labels)){
-  
-      internal.node <- internal.node.labels[j]
-      
-      internal.coef <- tree$annotations[[internal.node]]
-  
-      internal.coef <- c(unlist(internal.coef$spline_coefficients_BEAST))
-  
-      internal.node.data.subset <- rbind(internal.node.data.subset, internal.coef)
-    }
+  for (j in 1:length(internal.node.labels)){
+    
+    internal.node <- internal.node.labels[j]
+    
+    internal.coef <- tree$annotations[[internal.node]]
+    
+    internal.coef <- c(unlist(internal.coef$spline_coefficients_BEAST))
+    
+    internal.node.data.subset <- rbind(internal.node.data.subset, internal.coef)
+  }
   
   internal.node.data <- rbind(internal.node.data, internal.node.data.subset)
   
@@ -342,42 +344,42 @@ internal.node.reflectance <- NULL
 for (i in 1:49){
   
   x <- i
-
+  
   internal.node.reflectance <- NULL
-    
+  
   column.seq <- seq(i, 4900-(49-x), length.out = 100)
   
   node.coefs <- internal.node.data[column.seq,]
   
   node.data <- NULL
   
-    for (j in 1:dim(node.coefs)[1]){
-      
-      y <- j
-      
-      node.coefficients <- node.coefs[y,]
-      
-      refl <- bspline.matrix %*% matrix(node.coefficients[2:39])
-      
-      refl <- refl + node.coefficients[1]
-      
-      node.data <- cbind(node.data, refl)
-      
-    }
-
+  for (j in 1:dim(node.coefs)[1]){
+    
+    y <- j
+    
+    node.coefficients <- node.coefs[y,]
+    
+    refl <- bspline.matrix %*% matrix(node.coefficients[2:39])
+    
+    refl <- refl + node.coefficients[1]
+    
+    node.data <- cbind(node.data, refl)
+    
+  }
+  
   internal.node.reflectance <- cbind(internal.node.reflectance, node.data)
-
-
-plot(x = 300:700, y = rep(100, 401), col = "white", ylim = c(min(internal.node.reflectance),max(internal.node.reflectance)), main = i+52)
-for (i in 1:100){
-  
-  x <- i
-  
-  lines(x = 300:700, y = c(internal.node.reflectance[,x]), col = i)
   
   
-}
-
+  plot(x = 300:700, y = rep(100, 401), col = "white", ylim = c(min(internal.node.reflectance),max(internal.node.reflectance)), main = i+52)
+  for (i in 1:100){
+    
+    x <- i
+    
+    lines(x = 300:700, y = c(internal.node.reflectance[,x]), col = i)
+    
+    
+  }
+  
 }
 
 # to get color of line, need pavo still
@@ -398,6 +400,3 @@ for (i in 1:100){
 #   
 # internal.node.reflectance <- rbind(node.number, internal.node.reflectance)
 #   
-
-
-
