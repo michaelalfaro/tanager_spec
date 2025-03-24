@@ -44,7 +44,7 @@ suppressMessages({
    ddPath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\RefDataSpeciesSummary_MatchingMF\\data"
   
   # File pathway linking to the reflectance data for Thraupidae specimens on PC
-  # ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
+   ddPath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\RefDataSpeciesSummary_MatchingMF"
 
   # Reads in all of .csv files
   dat <- pblapply(list.files(ddPath, full=T), read.csv)
@@ -93,7 +93,7 @@ get the tanagers only
  treepath <- "C:\\Users\\proto\\OneDrive\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # File pathway linking to the Thraupidae tree on PC
-# treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
+ treepath <- "C:\\Users\\batra\\Documents\\tanager_spec\\tanager_spec\\data\\MCC_Tree_SpNames.nex"
 
 # Reads Thraupidae tree into R
 tt <- read.nexus(treepath)
@@ -2705,6 +2705,7 @@ for (i in 1:39){
 
 # Adds rownames to our data "vector" to assign our coefficients to tip labels
 rownames(spline.data.mvgls) <- names(spline_results)
+
 
 # Creates a data list for the mvgls function
 data.mvgls <- list(spline.data.mvgls=spline.data.mvgls)
