@@ -302,7 +302,7 @@ test4 %>% ggplot() + geom_density(aes(x = unlist(internal_node_coefs.x)), fill =
 test5 <- test4 %>% pivot_longer(cols = c(internal_node_coefs.x, internal_node_coefs.y))
 
 test5 %>% ggplot(aes(x = unlist(value), fill = name)) + geom_density(alpha = 0.25) + scale_fill_manual(labels = c(53,54), name = "Node", values = c("black", "yellow2"))
-#####
+######
 
 # Numerical values in annotation list corresponding to the internal nodes (not including tip labels) for our tanager tree
 internal.node.labels <- c(1,2,3,5,8,9,10,11,12,14,17,20,21,24,26,29,31,33,34,35,38,40,44,47,49,51,54,55,56,58,60,64,65,67,68,69,70,72,76,77,81,83,85,88,89,90,92,94,97)
