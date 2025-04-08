@@ -83,8 +83,18 @@ plot.root.reflectance <- plot.root.reflectance %>% mutate(wl = rep(300:700, 100)
 # Plots each predicted reflectance curve from the BEAST runs
 plot.root.reflectance %>% group_by(run) %>% ggplot(aes(x = wl, y = rescaled_reflectance)) + geom_point(alpha = 0.25, size = 0.75, color = as.character(rep(root.reflectance.BEAST$color, each = 401))) + theme() + theme_bw() + stat_wl_strip(ymin = -1.5, ymax = -0.5) + scale_fill_identity() + labs(x = "Wavelength (nm)", y = "Reflectance (%)", title = "Root Reflectance Predicted by BEAST")
 
+#####
+# Plotting mean root reflectance using a 1 sd interval
 
+mean_root <- root.reflectance.ASR %>% column_to_rownames(var = "wl")
 
+means <- rowMeans(mean_root)
+
+mean_root <- mean_root %>% mutate(stdev = apply(mean_root, 1, sd)) %>% select(c(stdev, c(-stdev))) %>%  mutate(wl = c(300:700), wl_means = means)
+
+mean_root %>% ggplot(aes(x = wl, y = means)) + geom_ribbon(aes(ymin = wl_means - stdev, ymax = wl_means + stdev), fill = "lightgray", alpha = 0.5) + geom_line(lwd = 2, color = as.character(spec2rgb(procspec(as.rspec(data.frame(wl = mean_root$wl, reflectance = mean_root$wl_means)), fixneg = "zero")))) + theme_bw() + labs(x = "Wavelength (%)", y = "Reflectance (%)", title = "Root Reflectance Predicted by BEAST", subtitle = "Includes 1 standard deviation around mean")
+
+#####
 # Applying what we did but with the internal nodes
 
 # Creates a tibble with the trees drawn from our MCMC
@@ -146,8 +156,10 @@ intnode.reflectance.BEAST <- intnode.reflectance.BEAST %>% left_join(intnode.dat
 # Removes columns not needed in the future
 intnode.reflectance.BEAST <- intnode.reflectance.BEAST %>% select(-c(nodes_list.y, join_list)) %>% rename(nodes_list = nodes_list.x)
 
-# The code below follows a near-identical process to that of what we used with the root node. The only minor change is that there has to be an initial line of code to filter which node that you want to specifically look at
 
+
+
+# The code below follows a near-identical process to that of what we used with the root node. The only minor change is that there has to be an initial line of code to filter which node that you want to specifically look at
 # Case study using node 65
 test.node <- intnode.reflectance.BEAST %>% filter(nodes_internal == 65)
 
@@ -400,3 +412,118 @@ for (i in 1:49){
 #   
 # internal.node.reflectance <- rbind(node.number, internal.node.reflectance)
 #   
+
+
+
+
+test <- tibble(reflectance = test.node$rescaled_reflectance)%>% unnest(cols = reflectance) %>% mutate(wl = rep(c(300:700), length(reflectance)/length(300:700)), tree = rep(unique(test.node$tree_name), each = 401*49), node = rep(c(rep(unique(test.node$nodes_internal), each = 401)), 100)) %>% pivot_wider(names_from = "wl", values_from = "reflectance")
+
+# test plot
+plot <- test %>% filter(node == 65)
+
+plot <- plot %>% select(-c(tree, node))
+
+plot <- data.frame(wl = 300:700, t(plot)) %>% as_tibble() %>% column_to_rownames(var = "wl")
+
+means <- rowMeans(plot)
+
+
+plot <- plot %>% mutate(stdev = apply(plot, 1, sd)) %>% select(c(stdev, c(-stdev))) %>%  mutate(wl = c(300:700), wl_means = means)
+
+plot %>% ggplot(aes(x = wl, y = wl_means)) + geom_ribbon(aes(ymin = wl_means - stdev, ymax = wl_means + stdev), fill = "lightgray", alpha = 0.5) + geom_line(lwd = 2, color = as.character(spec2rgb(procspec(as.rspec(data.frame(wl = plot$wl, reflectance = plot$wl_means)), fixneg = "zero")))) + theme_bw() + labs(x = "Wavelength (%)", y = "Reflectance (%)", title = "Node 65 Reflectance Predicted by BEAST", subtitle = "Includes 1 standard deviation around mean")
+
+# Generalized plotter
+ASR_plotter_v2 <- function(dataframe, nodes){
+  
+  if (sum(names(dataframe) == "reflectance") == 0){
+    stop("Dataframe needs a column titled 'reflectance'.")
+  }
+  
+  if (sum(names(dataframe) == "") == 0){
+    stop("Dataframe needs a column titled 'internal_node_coefs'.")
+  }
+  
+  if (class(dataframe$internal_node_coefs) != "list"){
+    stop("Spline coefficient column needs to be a list.")
+  }
+  
+  if (length(nodes) == 1){
+  
+  
+  
+  
+  
+  
+}}
+               
+
+
+
+
+
+# not fixed topology internal node extractor
+
+x <- BEAST.trees.subset[["STATE_5604"]]
+
+edges <- data.frame(x$edge)
+
+edges <- data.frame(edges, BEAST_annotation_number = c(1:length(c(edges[,1]))))
+
+root <- edges[1,1]
+
+edges <- as_tibble(edges) %>% filter(X2 > root)
+
+edges <- edges %>% filter(X2 > root)
+
+y <- BEAST.trees.subset[["STATE_14334"]]
+
+BEAST_annotation_finder_for_internal_nodes <- function(tree){
+  
+  if (class(tree) == "phylo" | length(tree) == 1){
+  # Extracts the edges data frame from the tree
+  edges <- data.frame(tree$edge)
+  
+  # Adds the internal notation values to the edges data frame
+  edges <- data.frame(edges, BEAST_annotation_number = c(1:length(c(edges[,1]))))
+  
+  # Extracts the root node value
+  root <- edges[1,1]
+  
+  # Filters the data frame to show which values from the BEAST internal node values correspond to the actual tree internal nodes
+  edges <- as_tibble(edges) %>% filter(X2 > root)
+  
+  # Returns a vector of the internal nodes that should be drawn from the tree
+  return(edges$BEAST_annotation_number)
+  }
+  
+  if (class(tree) == "multiPhylo"){
+    
+    tree_annotations <- NULL
+    
+    tree_names <- NULL
+    
+    for (i in 1:length(tree)){
+      
+      tree_subset <- tree[[i]]
+      
+      # Extracts the edges data frame from the tree
+      edges <- data.frame(tree_subset$edge)
+      
+      # Adds the internal notation values to the edges data frame
+      edges <- data.frame(edges, BEAST_annotation_number = c(1:length(c(edges[,1]))))
+      
+      # Extracts the root node value
+      root <- edges[1,1]
+      
+      # Filters the data frame to show which values from the BEAST internal node values correspond to the          actual tree internal nodes
+      edges <- as_tibble(edges) %>% filter(X2 > root)
+      
+      # Combines data into data frame
+      tree_annotations <- cbind(tree_annotations, edges$BEAST_annotation_number)
+      
+    }
+    
+    return(tree_annotations)
+  }
+}
+
